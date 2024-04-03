@@ -7,7 +7,6 @@
     nixfmt.url = "github:serokell/nixfmt/v0.6.0";
   };
 
-  # Replace `slight` everywhere in this file with your package name.
   outputs = { self, nixpkgs, systems, rust-overlay, templates, nixfmt }:
     let
       lib = nixpkgs.lib.extend templates.lib.overlay;
@@ -21,41 +20,37 @@
       devShells = eachSystem (system:
         let pkgs = pkgsFor.${system};
         in {
-          default = with pkgs; mkShell {
-            strictDeps = true;
-
-            # Uncomment this when you have a `Cargo.lock` checked in to Git.
-            # inputsFrom = [ slight ];
-
-            packages = [
-              # Derivations in `rust-stable` take precedence over nightly.
-              (lib.hiPrio (rust-bin.stable.latest.minimal.override {
-                extensions = [ "rust-src" "rust-docs" "clippy" ];
-              }))
-              # Use rustfmt, and other tools that require nightly features.
-              (rust-bin.selectLatestNightlyWith (toolchain:
-                toolchain.minimal.override {
-                  extensions = [ "rustfmt" "rust-analyzer" ];
+          default = with pkgs;
+            mkShell {
+              strictDeps = true;
+              inputsFrom = [ kekw ];
+              packages = [
+                # Derivations in `rust-stable` take precedence over nightly.
+                (lib.hiPrio (rust-bin.stable.latest.minimal.override {
+                  extensions = [ "rust-src" "rust-docs" "clippy" ];
                 }))
+                # Use rustfmt, and other tools that require nightly features.
+                (rust-bin.selectLatestNightlyWith (toolchain:
+                  toolchain.minimal.override {
+                    extensions = [ "rustfmt" "rust-analyzer" ];
+                  }))
+              ];
 
-              # Native transitive dependencies for Cargo
-              pkg-config
-              openssl
-            ];
               OPENSSL_LIB_DIR = "${openssl.out}/lib";
               OPENSSL_ROOT_DIR = "${openssl.out}";
               OPENSSL_INCLUDE_DIR = "${openssl.dev}/include";
-            # RUST_BACKTRACE = 1;
-          };
+              # RUST_BACKTRACE = 1;
+            };
         });
 
       overlays = {
         default = pkgs: _: {
-          slight = pkgs.callPackage (import ./nix/default.nix) {
+          kekw = pkgs.callPackage (import ./nix/default.nix) {
             inherit lib;
-            sourceRoot = with lib.sources;
+            sourceRoot = self;
+            sourceFilter = with lib.sources;
               cleanSourceWith {
-                name = "slight";
+                name = "kekw";
                 src = self;
                 filter =
                   mkSourceFilter self [ defaultSourceFilter rustSourceFilter ];
@@ -66,8 +61,8 @@
       };
 
       packages = eachSystem (system: {
-        default = self.packages.${system}.slight;
-        slight = (self.overlays.default pkgsFor.${system} null).slight;
+        default = self.packages.${system}.kekw;
+        kekw = (self.overlays.default pkgsFor.${system} null).kekw;
       });
 
       formatter = eachSystem (system: nixfmt.packages.${system}.default);

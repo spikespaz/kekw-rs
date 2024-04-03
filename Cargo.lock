@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "rust-package"
-version = "0.1.0"
+name = "kekw"
+version = "0.0.0"

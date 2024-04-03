@@ -6,7 +6,7 @@ sourceFilter ? lib.cleanSourceFilter,
 #
 platforms ? [ "x86-64-linux" ],
 #
-lib, rustPlatform, coreutils
+lib, rustPlatform, coreutils, pkg-config, openssl
 #
 }:
 let manifest = lib.importTOML "${sourceRoot}/Cargo.toml";
@@ -18,17 +18,10 @@ in rustPlatform.buildRustPackage {
     filter = sourceFilter;
   };
   cargoLock.lockFile = "${sourceRoot}/Cargo.lock";
-
-  postPatch = ''
-    substituteInPlace 90-backlight.rules \
-      --replace '/bin/chgrp' '${coreutils}/bin/chgrp' \
-      --replace '/bin/chmod' '${coreutils}/bin/chmod'
-  '';
-
-  postInstall = ''
-    install -Dm444 90-backlight.rules -t $out/etc/udev/rules.d
-  '';
-
+  nativeBuildInputs = [ # Native transitive dependencies for Cargo
+    pkg-config
+    openssl
+  ];
   meta = {
     inherit (manifest.package) description homepage;
     license = lib.licenses.mit;
