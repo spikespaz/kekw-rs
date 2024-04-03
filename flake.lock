@@ -16,6 +16,22 @@
         "type": "github"
       }
     },
+    "advisory-db": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1711896428,
+        "narHash": "sha256-cZfXcw6dkd+00dOnD0tD/GLX7gEU/piVUF8SOKRIjf4=",
+        "owner": "rustsec",
+        "repo": "advisory-db",
+        "rev": "799ff4a10673405b2334f6653519fb092aa99845",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rustsec",
+        "repo": "advisory-db",
+        "type": "github"
+      }
+    },
     "blank": {
       "locked": {
         "lastModified": 1625557891,
@@ -1135,6 +1151,7 @@
     },
     "root": {
       "inputs": {
+        "advisory-db": "advisory-db",
         "crane": "crane",
         "nixfmt": "nixfmt",
         "nixpkgs": "nixpkgs_9",
