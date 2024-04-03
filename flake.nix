@@ -3,32 +3,44 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default-linux";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    templates.url = "github:spikespaz/flake-templates";
+    crane.url = "github:ipetkov/crane";
     nixfmt.url = "github:serokell/nixfmt/v0.6.0";
   };
 
-  outputs = { self, nixpkgs, systems, rust-overlay, templates, nixfmt }:
+  outputs = { self, nixpkgs, systems, rust-overlay, crane, nixfmt }:
     let
-      lib = nixpkgs.lib.extend templates.lib.overlay;
+      inherit (nixpkgs) lib;
       eachSystem = lib.genAttrs (import systems);
+
       pkgsFor = eachSystem (system:
         import nixpkgs {
           localSystem = system;
-          overlays = [ rust-overlay.overlays.default self.overlays.default ];
+          overlays = [
+            rust-overlay.overlays.default
+            self.overlays.default
+            (pkgs: _: {
+              craneLib = (crane.mkLib pkgs).overrideToolchain
+                (rustToolchain pkgs.rust-bin);
+            })
+          ];
         });
+
+      rustToolchain = rust-bin:
+        rust-bin.stable.latest.minimal.override {
+          extensions = [ "rust-src" "rust-docs" "clippy" ];
+        };
     in {
       devShells = eachSystem (system:
         let pkgs = pkgsFor.${system};
         in {
           default = with pkgs;
-            mkShell {
+            craneLib.devShell {
               strictDeps = true;
-              inputsFrom = [ kekw ];
+              inputsFrom = [ kekw-bot ];
+
               packages = [
-                # Derivations in `rust-stable` take precedence over nightly.
-                (lib.hiPrio (rust-bin.stable.latest.minimal.override {
-                  extensions = [ "rust-src" "rust-docs" "clippy" ];
-                }))
+                # Derivations in `rustStable` take precedence over nightly.
+                # (lib.hiPrio (rustToolchain rust-bin))
                 # Use rustfmt, and other tools that require nightly features.
                 (rust-bin.selectLatestNightlyWith (toolchain:
                   toolchain.minimal.override {
@@ -45,24 +57,17 @@
 
       overlays = {
         default = pkgs: _: {
-          kekw = pkgs.callPackage (import ./nix/default.nix) {
-            inherit lib;
-            sourceRoot = self;
-            sourceFilter = with lib.sources;
-              cleanSourceWith {
-                name = "kekw";
-                src = self;
-                filter =
-                  mkSourceFilter self [ defaultSourceFilter rustSourceFilter ];
-              };
+          kekw-bot = pkgs.callPackage (import ./nix/default.nix) {
+            inherit (pkgs) craneLib;
+            sourceRoot = self.outPath;
             platforms = import systems;
           };
         };
       };
 
       packages = eachSystem (system: {
-        default = self.packages.${system}.kekw;
-        kekw = (self.overlays.default pkgsFor.${system} null).kekw;
+        default = self.packages.${system}.kekw-bot;
+        inherit (pkgsFor.${system}) kekw-bot;
       });
 
       formatter = eachSystem (system: nixfmt.packages.${system}.default);
