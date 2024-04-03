@@ -14,20 +14,20 @@ dependencies = [
 
 [[package]]
 name = "kekw_api"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "kekw_bot"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "kekw_client"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "kekw_endpoints"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "kekw_macros"
-version = "0.1.0"
+version = "0.0.0"

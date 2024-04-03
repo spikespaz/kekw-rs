@@ -8,3 +8,14 @@ members = [
     "kekw_endpoints",
     "kekw_macros",
 ]
+default-members = ["kekw", "kekw_bot"]
+
+[workspace.package]
+name = "kekw"
+version = "0.0.0"
+description = "Agnostic API wrapper for Twitch Helix and EventSub."
+homepage = "https://github.com/spikespaz/kekw-rs"
+authors = ["Jacob Birkett <support@birkett.dev>"]
+license = "MIT"
+keywords = ["twitch", "eventsub", "oauth", "async", "http-client"]
+edition = "2021"

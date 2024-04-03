@@ -1,11 +1,12 @@
 [package]
 name = "kekw"
-version = "0.0.0"
-description = "Agnostic API wrapper for Twitch Helix and EventSub."
-homepage = "https://github.com/spikespaz/kekw-rs"
-authors = ["Jacob Birkett <support@birkett.dev>"]
-license = "MIT"
-keywords = ["twitch", "eventsub", "oauth", "async", "http-client"]
+version.workspace = true
+description.workspace = true
+homepage.workspace = true
+# documentation.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
 edition = "2021"
 
 publish = false
