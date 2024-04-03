@@ -7,6 +7,7 @@ members = [
     "kekw_client",
     "kekw_endpoints",
     "kekw_macros",
+    "kekw_oauth2",
 ]
 default-members = ["kekw", "kekw_bot"]
 

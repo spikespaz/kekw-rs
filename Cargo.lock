@@ -31,3 +31,7 @@ version = "0.0.0"
 [[package]]
 name = "kekw_macros"
 version = "0.0.0"
+
+[[package]]
+name = "kekw_oauth2"
+version = "0.0.0"
