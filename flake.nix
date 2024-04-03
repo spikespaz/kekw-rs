@@ -29,6 +29,20 @@
         rust-bin.stable.latest.minimal.override {
           extensions = [ "rust-src" "rust-docs" "clippy" ];
         };
+
+      intermediates = pkgs: craneLib: rec {
+        commonArgs = {
+          strictDeps = true;
+          src = craneLib.cleanCargoSource (craneLib.path self.outPath);
+          nativeBuildInputs = with pkgs; [ pkg-config openssl ];
+          meta = {
+            license = lib.licenses.mit;
+            maintainers = [ lib.maintainers.spikespaz ];
+            platforms = import systems;
+          };
+        };
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+      };
     in {
       devShells = eachSystem (system:
         let pkgs = pkgsFor.${system};
@@ -69,6 +83,49 @@
         default = self.packages.${system}.kekw-bot;
         inherit (pkgsFor.${system}) kekw-bot;
       });
+
+      checks = eachSystem (system:
+        with pkgsFor.${system};
+        let inherit (intermediates pkgs craneLib) commonArgs cargoArtifacts;
+        in {
+          # Build the crate as part of `nix flake check` for convenience
+          inherit kekw-bot;
+
+          # Run clippy (and deny all warnings) on the crate source,
+          # again, reusing the dependency artifacts from above.
+          #
+          # Note that this is done as a separate derivation so that
+          # we can block the CI if there are issues here, but not
+          # prevent downstream consumers from building our crate by itself.
+          kekw-rs-clippy = craneLib.cargoClippy (commonArgs // {
+            inherit cargoArtifacts;
+            cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+          });
+
+          kekw-rs-doc =
+            craneLib.cargoDoc (commonArgs // { inherit cargoArtifacts; });
+
+          # Check formatting
+          kekw-rs-fmt = craneLib.cargoFmt { inherit (commonArgs) src; };
+
+          # Audit dependencies
+          kekw-rs-audit = craneLib.cargoAudit {
+            inherit (commonArgs) src;
+            inherit advisory-db;
+          };
+
+          # Audit licenses
+          my-crate-deny = craneLib.cargoDeny { inherit (commonArgs) src; };
+
+          # Run tests with cargo-nextest
+          # Consider setting `doCheck = false` on `my-crate` if you do not want
+          # the tests to run twice
+          kekw-rs-nextest = craneLib.cargoNextest (commonArgs // {
+            inherit cargoArtifacts;
+            partitions = 1;
+            partitionType = "count";
+          });
+        });
 
       formatter = eachSystem (system: nixfmt.packages.${system}.default);
     };
