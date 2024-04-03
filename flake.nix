@@ -41,7 +41,7 @@
       rustNightly = rust-bin:
         (rust-bin.selectLatestNightlyWith (toolchain:
           toolchain.minimal.override {
-            extensions = [ "rustfmt" "rust-analyzer" ];
+            extensions = [ "rust-docs" "rustfmt" "rust-analyzer" ];
           }));
 
       intermediates = pkgs:
