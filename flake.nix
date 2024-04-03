@@ -68,6 +68,9 @@
               # Derivations in `rustToolchain` take precedence over nightly.
               # Use rustfmt, and other tools that require nightly features.
               (rustNightly rust-bin)
+              cargo-audit
+              cargo-watch
+              cargo-nextest
             ];
             OPENSSL_LIB_DIR = "${openssl.out}/lib";
             OPENSSL_ROOT_DIR = "${openssl.out}";
