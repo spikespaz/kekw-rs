@@ -1,0 +1,19 @@
+[package]
+name = "kekw"
+version = "0.0.0"
+description = "Agnostic API wrapper for Twitch Helix and EventSub."
+homepage = "https://github.com/spikespaz/kekw-rs"
+authors = ["Jacob Birkett <support@birkett.dev>"]
+license = "MIT"
+keywords = ["twitch", "eventsub", "oauth", "async", "http-client"]
+edition = "2021"
+
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kekw_api = { path = "../kekw_api" }
+kekw_client = { path = "../kekw_client" }
+kekw_endpoints = { path = "../kekw_endpoints" }
+kekw_macros = { path = "../kekw_macros" }
