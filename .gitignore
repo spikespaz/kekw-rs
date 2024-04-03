@@ -1,0 +1,8 @@
+# Editors
+.vscode/
+
+# Rust
+/target/
+
+# Nix
+/result
