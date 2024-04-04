@@ -1,3 +1,7 @@
+pub mod types {
+    pub mod scopes;
+}
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }

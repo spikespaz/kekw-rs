@@ -17,3 +17,4 @@ publish = false
 docs = []
 
 [dependencies]
+kekw_macros = { path = "../kekw_macros" }
