@@ -1,3 +1,5 @@
+mod ext;
+
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
@@ -9,28 +11,13 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Attribute, Expr, ExprLit, Ident, ItemEnum, Lit, LitStr, Variant};
 
-macro_rules! proc_macro_impl {
-    ($($tt:tt)*) => {
-        match (|| -> syn::Result<TokenStream2> {
-            $($tt)*
-        })() {
-            Ok(tokens) => tokens.into(),
-            Err(e) => e.to_compile_error().into(),
-        }
-    };
-}
-
-macro_rules! err {
-    ($tokens:expr, $message:expr) => {
-        Err(syn::Error::new($tokens.span(), $message))
-    };
-}
+use self::ext::*;
 
 static STATIC_STRING_ATTRIBUTE: &str = "static_str";
 
 #[proc_macro_derive(VariantStrings, attributes(static_str))]
 pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
-    proc_macro_impl! {
+    crate::proc_macro_impl! {
         let ItemEnum {
             attrs: _,
             vis: _,
@@ -56,24 +43,13 @@ pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
     }
 }
 
-fn pop_attribute<I>(ident: &I, attrs: &mut Vec<Attribute>) -> Option<Attribute>
-where
-    I: ?Sized,
-    Ident: PartialEq<I>,
-{
-    attrs
-        .iter()
-        .position(|attr| attr.path().is_ident(ident))
-        .map(|index| attrs.remove(index))
-}
-
 struct VariantStrings(HashMap<Ident, LitStr>);
 
 impl VariantStrings {
     fn from_variants(variants: &mut Punctuated<Variant, Comma>) -> syn::Result<Self> {
         let mut map = HashMap::new();
         for variant in variants.iter_mut() {
-            if let Some(attr) = pop_attribute(STATIC_STRING_ATTRIBUTE, &mut variant.attrs) {
+            if let Some(attr) = variant.attrs.pop_by_ident(STATIC_STRING_ATTRIBUTE) {
                 if let Expr::Lit(ExprLit {
                     attrs: _,
                     lit: Lit::Str(variant_str),
