@@ -1,8 +1,8 @@
 // Adapted from:
 // <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
-use kekw_macros::VariantStrings;
+use kekw_macros::{DisplayStrings, VariantStrings};
 
-#[derive(Copy, Clone, VariantStrings)]
+#[derive(Copy, Clone, DisplayStrings, VariantStrings)]
 pub enum Scope {
     /// View analytics data for the Twitch Extensions owned by the authenticated account.
     #[static_str("analytics:read:extensions")]

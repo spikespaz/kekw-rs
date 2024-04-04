@@ -9,26 +9,24 @@ use quote::quote;
 use syn::parse::{Parse, Parser};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Attribute, Expr, ExprLit, Ident, ItemEnum, Lit, LitStr, Variant};
+use syn::{Expr, ExprLit, Ident, ItemEnum, Lit, LitStr, Variant};
 
 use self::ext::*;
 
 static STATIC_STRING_ATTRIBUTE: &str = "static_str";
+static DISPLAY_EXPRESSION_ATTRIBUTE: &str = "display";
 
 #[proc_macro_derive(VariantStrings, attributes(static_str))]
 pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
     crate::proc_macro_impl! {
         let ItemEnum {
-            attrs: _,
-            vis: _,
-            enum_token: _,
             ident,
             generics,
-            brace_token: _,
             mut variants,
+            ..
         } = ItemEnum::parse.parse(item)?;
 
-        let map = VariantStrings::from_variants(&mut variants)?;
+        let map = VariantStrings::from_variants(STATIC_STRING_ATTRIBUTE, &mut variants)?;
         let (variant_idents, static_strs) = map.as_iters();
 
         Ok(quote!(
@@ -43,13 +41,50 @@ pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
     }
 }
 
+#[proc_macro_derive(DisplayStrings, attributes(static_str, display))]
+pub fn derive_display_strings(item: TokenStream1) -> TokenStream1 {
+    crate::proc_macro_impl! {
+        let ItemEnum {
+            ident,
+            generics,
+            mut variants,
+            ..
+        } = ItemEnum::parse.parse(item)?;
+
+        let mut str_map = VariantStrings::from_variants(STATIC_STRING_ATTRIBUTE, &mut variants)?;
+        let expr_map = VariantExprs::from_variants(DISPLAY_EXPRESSION_ATTRIBUTE, &mut variants)?;
+
+        expr_map.keys().for_each(|k| if str_map.contains_key(k) { str_map.remove(k); });
+
+        let (str_variants, str_values) = str_map.as_iters();
+        let (expr_variants, expr_values) = expr_map.as_iters();
+
+        Ok(quote!(
+            impl #generics ::std::fmt::Display for #ident #generics {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    match self {
+                        #(#ident::#str_variants => f.write_str(#str_values),)*
+                        #(#ident::#expr_variants => ::std::fmt::Display::fmt(&#expr_values, f),)*
+                    }
+                }
+            }
+        ))
+    }
+}
+
 struct VariantStrings(HashMap<Ident, LitStr>);
 
+struct VariantExprs(HashMap<Ident, Expr>);
+
 impl VariantStrings {
-    fn from_variants(variants: &mut Punctuated<Variant, Comma>) -> syn::Result<Self> {
+    fn from_variants<I>(ident: &I, variants: &mut Punctuated<Variant, Comma>) -> syn::Result<Self>
+    where
+        I: ?Sized,
+        Ident: PartialEq<I>,
+    {
         let mut map = HashMap::new();
         for variant in variants.iter_mut() {
-            if let Some(attr) = variant.attrs.pop_by_ident(STATIC_STRING_ATTRIBUTE) {
+            if let Some(attr) = variant.attrs.pop_by_ident(ident) {
                 if let Expr::Lit(ExprLit {
                     attrs: _,
                     lit: Lit::Str(variant_str),
@@ -76,6 +111,40 @@ impl Deref for VariantStrings {
 }
 
 impl DerefMut for VariantStrings {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl VariantExprs {
+    fn from_variants<I>(ident: &I, variants: &mut Punctuated<Variant, Comma>) -> syn::Result<Self>
+    where
+        I: ?Sized,
+        Ident: PartialEq<I>,
+    {
+        let mut map = HashMap::new();
+        for variant in variants.iter_mut() {
+            if let Some(attr) = variant.attrs.pop_by_ident(ident) {
+                map.insert(variant.ident.clone(), attr.parse_args::<Expr>()?);
+            }
+        }
+        Ok(Self(map))
+    }
+
+    fn as_iters(&self) -> (Vec<&Ident>, Vec<&Expr>) {
+        (self.keys().collect(), self.values().collect())
+    }
+}
+
+impl Deref for VariantExprs {
+    type Target = HashMap<Ident, Expr>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for VariantExprs {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
