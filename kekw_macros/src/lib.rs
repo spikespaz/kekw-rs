@@ -45,7 +45,7 @@ pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
         let (variant_idents, static_strs) = map.as_iters();
 
         Ok(quote!(
-            impl #generics ::std::convert::AsRef<&str> for #ident #generics {
+            impl #generics ::std::convert::AsRef<str> for #ident #generics {
                 fn as_ref(&self) -> &str {
                     match self {
                         #(#ident::#variant_idents => #static_strs,)*
