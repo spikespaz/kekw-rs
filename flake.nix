@@ -35,7 +35,7 @@
 
       rustToolchain = rust-bin:
         rust-bin.stable.latest.minimal.override {
-          extensions = [ "rust-src" "rust-docs" "clippy" ];
+          extensions = [ "rust-src" "clippy" ];
         };
 
       rustNightly = rust-bin:
