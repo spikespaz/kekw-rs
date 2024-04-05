@@ -8,8 +8,9 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::parse::{Parse, Parser};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Expr, ExprLit, Ident, ItemEnum, Lit, LitStr, Variant};
+use syn::{Error, Expr, ExprLit, Field, Ident, Index, ItemEnum, ItemStruct, Lit, LitStr, Variant};
 
 use self::ext::*;
 
@@ -17,6 +18,7 @@ static STATIC_STRING_ATTRIBUTE: &str = "static_str";
 static DISPLAY_EXPRESSION_ATTRIBUTE: &str = "display";
 static DEBUG_EXPRESSION_ATTRIBUTE: &str = "debug";
 static FROM_STRING_ATTRIBUTE: &str = "from_str";
+static DEREF_FIELD_ATTRIBUTE: &str = "deref";
 
 /// Derivers implement `AsRef<str>`.
 ///
@@ -147,6 +149,70 @@ pub fn derive_variant_from_str(item: TokenStream1) -> TokenStream1 {
                 }
             }
         ))
+    }
+}
+
+#[proc_macro_derive(DerefNewType, attributes(deref))]
+pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
+    crate::proc_macro_impl! {
+        let ItemStruct {
+            ident,
+            generics,
+            fields,
+            ..
+        } = ItemStruct::parse.parse(item)?;
+
+        let (field_index, field_ident, target_ty) = fields
+            .iter()
+            .enumerate()
+            .find_map(|(i, field)| match field {
+                Field { attrs, ident, ty, .. } if attrs.find_by_ident(DEREF_FIELD_ATTRIBUTE).is_some() => {
+                    Some((i, ident, ty))
+                },
+                _ => None
+            }).ok_or(Error::new(
+                fields.span(),
+                format!("require a single field to me marked with `#[{}]`", DEREF_FIELD_ATTRIBUTE)
+            ))?;
+
+        // macro_rules! impl_deref {
+        //     ($ident:expr, $generics:expr, $target_ty:expr, $field_name:expr) => {
+        //         quote! {
+        //             impl #$generics ::std::ops::Deref for #$ident #$generics {
+        //                 type Target = #$target_ty;
+
+        //                 fn deref(&self) -> &Self::Target {
+        //                     &self.#$field_name
+        //                 }
+        //             }
+        //         }
+        //     };
+        // }
+
+        if let Some(field_ident) = field_ident {
+            // Ok(impl_deref!(ident, generics, target_ty, field_ident))
+            Ok(quote! {
+                impl #generics ::std::ops::Deref for #ident #generics {
+                    type Target = #target_ty;
+
+                    fn deref(&self) -> &Self::Target {
+                        &self.#field_ident
+                    }
+                }
+            })
+        } else {
+            // Ok(impl_deref!(ident, generics, target_ty, Index::from(field_index)))
+            let field_index = Index::from(field_index);
+            Ok(quote! {
+                impl #generics ::std::ops::Deref for #ident #generics {
+                    type Target = #target_ty;
+
+                    fn deref(&self) -> &Self::Target {
+                        &self.#field_index
+                    }
+                }
+            })
+        }
     }
 }
 
