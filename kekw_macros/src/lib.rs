@@ -148,15 +148,28 @@ pub fn derive_variant_from_str(item: TokenStream1) -> TokenStream1 {
         let (str_variants, str_values) = str_map.as_iters();
         let (variants, values) = from_map.as_iters();
 
-        Ok(quote!(
-            impl #generics ::std::str::FromStr for #ident #generics {
-                type Err = ();
+        let err_ident = Ident::new(&format!("Parse{ident}Error"), Span::call_site());
 
-                fn from_str(s: &str) -> ::std::result::Result<Self, ()> {
+        Ok(quote!(
+            #[derive(::std::clone::Clone, ::std::fmt::Debug, ::kekw_macros::NewTypeFrom)]
+            pub struct #err_ident(::std::string::String);
+
+            impl ::std::fmt::Display for #err_ident {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                    write!(f, "string did not match any variant: {}", self.0)
+                }
+            }
+
+            impl ::std::error::Error for #err_ident {}
+
+            impl #generics ::std::str::FromStr for #ident #generics {
+                type Err = #err_ident;
+
+                fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
                     match s {
                         #(#str_values => ::std::result::Result::Ok(#ident::#str_variants),)*
                         #(#values => ::std::result::Result::Ok(#ident::#variants),)*
-                        _ => ::std::result::Result::Err(())
+                        _ => ::std::result::Result::Err(#err_ident(s.to_owned()))
                     }
                 }
             }
@@ -251,8 +264,8 @@ pub fn derive_new_type_from(item: TokenStream1) -> TokenStream1 {
             let from_ty = &fields.iter().next().unwrap().ty;
             Ok(quote!(
                 impl #generics ::std::convert::From<#from_ty> for #ident #generics {
-                    fn from(other: #from_ty) -> #ident {
-                        #ident(other)
+                    fn from(other: #from_ty) -> Self {
+                        Self(other)
                     }
                 }
             ))
@@ -279,7 +292,7 @@ pub fn derive_deserialize_from_str(item: TokenStream1) -> TokenStream1 {
                 where
                     E: ::serde::de::Error,
                 {
-                    v.parse().or_else(|e| ::std::result::Result::Err(E::custom(format!("{e:?}"))))
+                    v.parse().or_else(|e| ::std::result::Result::Err(E::custom(e)))
                 }
 
                 fn expecting(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {

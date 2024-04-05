@@ -261,7 +261,7 @@ mod serde_impl {
         where
             E: serde::de::Error,
         {
-            v.parse().or_else(|e| Err(E::custom(format!("{e:?}"))))
+            v.parse().or_else(|e| Err(E::custom(e)))
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
