@@ -3,11 +3,14 @@ use std::str::FromStr;
 // Adapted from:
 // <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
 use kekw_macros::{
-    DebugExprs, DerefNewType, DisplayStrings, NewTypeFrom, VariantFromStr, VariantStrings,
+    DebugExprs, DerefNewType, DeserializeFromStr, DisplayStrings, NewTypeFrom, VariantFromStr,
+    VariantStrings,
 };
 use serde::{Serialize, Serializer};
 
-#[derive(Copy, Clone, DebugExprs, DisplayStrings, VariantStrings, VariantFromStr)]
+#[derive(
+    Copy, Clone, DebugExprs, DisplayStrings, VariantStrings, VariantFromStr, DeserializeFromStr,
+)]
 pub enum Scope {
     /// View analytics data for the Twitch Extensions owned by the authenticated account.
     #[static_str("analytics:read:extensions")]
