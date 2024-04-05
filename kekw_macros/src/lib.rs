@@ -17,6 +17,9 @@ static STATIC_STRING_ATTRIBUTE: &str = "static_str";
 static DISPLAY_EXPRESSION_ATTRIBUTE: &str = "display";
 static DEBUG_EXPRESSION_ATTRIBUTE: &str = "debug";
 
+/// Derivers implement `AsRef<str>`.
+///
+/// Define static strings per variant with the `static_str` attribute.
 #[proc_macro_derive(VariantStrings, attributes(static_str))]
 pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
     crate::proc_macro_impl! {
@@ -28,13 +31,13 @@ pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
         } = ItemEnum::parse.parse(item)?;
 
         let map = VariantStrings::from_variants(STATIC_STRING_ATTRIBUTE, &mut variants)?;
-        let (variant_idents, static_strs) = map.as_iters();
+        let (str_variants, str_values) = map.as_iters();
 
         Ok(quote!(
             impl #generics ::std::convert::AsRef<str> for #ident #generics {
                 fn as_ref(&self) -> &str {
                     match self {
-                        #(#ident::#variant_idents => #static_strs,)*
+                        #(#ident::#str_variants => #str_values,)*
                     }
                 }
             }
@@ -43,7 +46,14 @@ pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
 }
 
 macro_rules! impl_derive_format_strings {
-    ($trait:ident, $derive:ident, $ident:ident, $attr_name:ident) => {
+    (
+        $(#[$meta:meta])*
+        derive: $derive:ident,
+        trait: $trait:ident,
+        fn: $ident:ident,
+        attr: $attr_name:ident
+    ) => {
+        $(#[$meta])*
         #[proc_macro_derive($derive, attributes(static_str, debug))]
         pub fn $ident(item: TokenStream1) -> TokenStream1 {
             crate::proc_macro_impl! {
@@ -78,16 +88,31 @@ macro_rules! impl_derive_format_strings {
 }
 
 impl_derive_format_strings!(
-    Display,
-    DisplayStrings,
-    derive_display_strings,
-    DISPLAY_EXPRESSION_ATTRIBUTE
+    /// Derivers implement [`std::fmt::Display`].
+    ///
+    /// Define expressions to use for formatting each variant with the `display` attribute.
+    ///
+    /// This derive is interoperable with [`derive@VariantStrings`]. When a variant
+    /// does not does have the `display` attribute, but *does* have `static_str`,
+    /// that literal will be used instead.
+    derive: DisplayStrings,
+    trait: Display,
+    fn: derive_display_strings,
+    attr: DISPLAY_EXPRESSION_ATTRIBUTE
 );
+
 impl_derive_format_strings!(
-    Debug,
-    DebugExprs,
-    derive_debug_exprs,
-    DEBUG_EXPRESSION_ATTRIBUTE
+    /// Derivers implement [`std::fmt::Debug`].
+    ///
+    /// Define expressions to use for formatting each variant with the `debug` attribute.
+    ///
+    /// This derive is interoperable with [`derive@VariantStrings`]. When a variant
+    /// does not does have the `debug` attribute, but *does* have `static_str`,
+    /// that literal will be used instead.
+    derive: DebugExprs,
+    trait: Debug,
+    fn: derive_debug_exprs,
+    attr: DEBUG_EXPRESSION_ATTRIBUTE
 );
 
 struct VariantStrings(HashMap<Ident, LitStr>);
