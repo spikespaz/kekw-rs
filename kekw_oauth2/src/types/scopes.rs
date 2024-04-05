@@ -1,6 +1,6 @@
 // Adapted from:
 // <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
-use kekw_macros::{DebugExprs, DisplayStrings, VariantStrings, VariantFromStr};
+use kekw_macros::{DebugExprs, DerefNewType, DisplayStrings, VariantFromStr, VariantStrings};
 
 #[derive(Copy, Clone, DebugExprs, DisplayStrings, VariantStrings, VariantFromStr)]
 pub enum Scope {
@@ -197,3 +197,6 @@ pub enum Scope {
     #[static_str("whispers:read")]
     WhispersRead,
 }
+
+#[derive(Clone, DerefNewType)]
+pub struct Scopes(#[deref(mut)] Vec<Scope>);
