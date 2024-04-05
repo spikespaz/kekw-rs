@@ -16,6 +16,7 @@ use self::ext::*;
 static STATIC_STRING_ATTRIBUTE: &str = "static_str";
 static DISPLAY_EXPRESSION_ATTRIBUTE: &str = "display";
 static DEBUG_EXPRESSION_ATTRIBUTE: &str = "debug";
+static FROM_STRING_ATTRIBUTE: &str = "from_str";
 
 /// Derivers implement `AsRef<str>`.
 ///
@@ -31,13 +32,13 @@ pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
         } = ItemEnum::parse.parse(item)?;
 
         let map = VariantStrings::from_variants(STATIC_STRING_ATTRIBUTE, &mut variants)?;
-        let (str_variants, str_values) = map.as_iters();
+        let (variants, values) = map.as_iters();
 
         Ok(quote!(
             impl #generics ::std::convert::AsRef<str> for #ident #generics {
                 fn as_ref(&self) -> &str {
                     match self {
-                        #(#ident::#str_variants => #str_values,)*
+                        #(#ident::#variants => #values,)*
                     }
                 }
             }
@@ -70,14 +71,14 @@ macro_rules! impl_derive_format_strings {
                 expr_map.keys().for_each(|k| if str_map.contains_key(k) { str_map.remove(k); });
 
                 let (str_variants, str_values) = str_map.as_iters();
-                let (expr_variants, expr_values) = expr_map.as_iters();
+                let (variants, values) = expr_map.as_iters();
 
                 Ok(quote!(
                     impl #generics ::std::fmt::$trait for #ident #generics {
                         fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                             match self {
                                 #(#ident::#str_variants => f.write_str(#str_values),)*
-                                #(#ident::#expr_variants => ::std::fmt::$trait::fmt(&#expr_values, f),)*
+                                #(#ident::#variants => ::std::fmt::$trait::fmt(&#values, f),)*
                             }
                         }
                     }
@@ -114,6 +115,40 @@ impl_derive_format_strings!(
     fn: derive_debug_exprs,
     attr: DEBUG_EXPRESSION_ATTRIBUTE
 );
+
+#[proc_macro_derive(VariantFromStr, attributes(static_str, from_str))]
+pub fn derive_variant_from_str(item: TokenStream1) -> TokenStream1 {
+    crate::proc_macro_impl! {
+        let ItemEnum {
+            ident,
+            generics,
+            mut variants,
+            ..
+        } = ItemEnum::parse.parse(item)?;
+
+        let mut str_map = VariantStrings::from_variants(STATIC_STRING_ATTRIBUTE, &mut variants)?;
+        let from_map = VariantExprs::from_variants(FROM_STRING_ATTRIBUTE, &mut variants)?;
+
+        from_map.keys().for_each(|k| if str_map.contains_key(k) { str_map.remove(k); });
+
+        let (str_variants, str_values) = str_map.as_iters();
+        let (variants, values) = from_map.as_iters();
+
+        Ok(quote!(
+            impl #generics ::std::str::FromStr for #ident #generics {
+                type Err = ();
+
+                fn from_str(s: &str) -> ::std::result::Result<Self, ()> {
+                    match s {
+                        #(#str_values => ::std::result::Result::Ok(#ident::#str_variants),)*
+                        #(#values => ::std::result::Result::Ok(#ident::#variants),)*
+                        _ => ::std::result::Result::Err(())
+                    }
+                }
+            }
+        ))
+    }
+}
 
 struct VariantStrings(HashMap<Ident, LitStr>);
 
