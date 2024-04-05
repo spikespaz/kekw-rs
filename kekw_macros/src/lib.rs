@@ -19,6 +19,7 @@ static DISPLAY_EXPRESSION_ATTRIBUTE: &str = "display";
 static DEBUG_EXPRESSION_ATTRIBUTE: &str = "debug";
 static FROM_STRING_ATTRIBUTE: &str = "from_str";
 static DEREF_FIELD_ATTRIBUTE: &str = "deref";
+static FROM_FIELD_TYPE_ATTRIBUTE: &str = "from";
 
 pub(crate) fn proc_macro_impl(tokens: impl FnOnce() -> syn::Result<TokenStream2>) -> TokenStream1 {
     tokens()
@@ -232,6 +233,31 @@ pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
         }
 
         Ok(tokens)
+    })
+}
+
+#[proc_macro_derive(NewTypeFrom)]
+pub fn derive_new_type_from(item: TokenStream1) -> TokenStream1 {
+    proc_macro_impl(|| {
+        let ItemStruct {
+            ident,
+            generics,
+            fields,
+            ..
+        } = ItemStruct::parse.parse(item)?;
+
+        if fields.len() != 1 {
+            Err(Error::new(fields.span(), "must have a single field"))
+        } else {
+            let from_ty = &fields.iter().next().unwrap().ty;
+            Ok(quote!(
+                impl #generics ::std::convert::From<#from_ty> for #ident #generics {
+                    fn from(other: #from_ty) -> #ident {
+                        #ident(other)
+                    }
+                }
+            ))
+        }
     })
 }
 

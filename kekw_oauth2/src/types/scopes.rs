@@ -1,6 +1,8 @@
 // Adapted from:
 // <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
-use kekw_macros::{DebugExprs, DerefNewType, DisplayStrings, VariantFromStr, VariantStrings};
+use kekw_macros::{
+    DebugExprs, DerefNewType, DisplayStrings, NewTypeFrom, VariantFromStr, VariantStrings,
+};
 use serde::{Serialize, Serializer};
 
 #[derive(Copy, Clone, DebugExprs, DisplayStrings, VariantStrings, VariantFromStr)]
@@ -199,7 +201,7 @@ pub enum Scope {
     WhispersRead,
 }
 
-#[derive(Clone, DerefNewType)]
+#[derive(Clone, DerefNewType, NewTypeFrom)]
 pub struct Scopes(#[deref(mut)] Vec<Scope>);
 
 impl Scopes {
