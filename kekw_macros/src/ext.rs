@@ -1,4 +1,4 @@
-use syn::{Attribute, Ident};
+use syn::{Attribute, Ident, Item, ItemEnum};
 
 pub(crate) trait AttributesExt {
     fn find_by_ident<I>(&self, ident: &I) -> Option<usize>
@@ -55,5 +55,26 @@ impl AttributesExt for Vec<Attribute> {
         Ident: PartialEq<I>,
     {
         self.find_by_ident(ident).and_then(|i| Some(self.remove(i)))
+    }
+}
+
+pub(crate) trait ItemExt {
+    fn ident(&self) -> Option<&Ident>;
+}
+
+impl ItemExt for Item {
+    fn ident(&self) -> Option<&Ident> {
+        match self {
+            Item::Const(it) => Some(&it.ident),
+            Item::Enum(it) => Some(&it.ident),
+            Item::ExternCrate(it) => Some(&it.ident),
+            Item::Fn(it) => Some(&it.sig.ident),
+            Item::Struct(it) => Some(&it.ident),
+            Item::Trait(it) => Some(&it.ident),
+            Item::TraitAlias(it) => Some(&it.ident),
+            Item::Type(it) => Some(&it.ident),
+            Item::Union(it) => Some(&it.ident),
+            _ => None,
+        }
     }
 }
