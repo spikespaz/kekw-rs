@@ -18,3 +18,7 @@ docs = []
 
 [dependencies]
 kekw_macros = { path = "../kekw_macros" }
+http-types = { version = "2", default-features = false }
+typed-builder = "0.18"
+serde = { version = "1", features = ["derive"] }
+serde_qs = "0.12.0"
