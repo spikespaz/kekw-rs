@@ -2,12 +2,12 @@ mod ext;
 mod parsers;
 
 use proc_macro::TokenStream as TokenStream1;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::parse::{Parse, Parser};
 use syn::spanned::Spanned;
 use syn::token::Mut;
-use syn::{Error, Index, ItemEnum, ItemStruct};
+use syn::{Error, Ident, Index, Item, ItemEnum, ItemStruct};
 
 use self::ext::*;
 use self::parsers::{VariantExprs, VariantStrings};
@@ -183,13 +183,15 @@ pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
                     .get_by_ident(DEREF_FIELD_ATTRIBUTE)
                     .map(|attr| (i, &field.ident, &field.ty, attr.parse_args::<Mut>().is_ok()))
             })
-            .ok_or(Error::new(
-                fields.span(),
-                format!(
-                    "require a single field to be marked with `#[{}]`",
-                    DEREF_FIELD_ATTRIBUTE
-                ),
-            ))?;
+            .ok_or_else(|| {
+                Error::new(
+                    fields.span(),
+                    format!(
+                        "require a single field to be marked with `#[{}]`",
+                        DEREF_FIELD_ATTRIBUTE
+                    ),
+                )
+            })?;
 
         macro_rules! impl_deref_new_type {
             ($field_name:ident) => {
@@ -255,5 +257,48 @@ pub fn derive_new_type_from(item: TokenStream1) -> TokenStream1 {
                 }
             ))
         }
+    })
+}
+
+#[proc_macro_derive(DeserializeFromStr)]
+pub fn derive_deserialize_from_str(item: TokenStream1) -> TokenStream1 {
+    proc_macro_impl(|| {
+        let item = Item::parse.parse(item)?;
+        let ident = item.ident().ok_or_else(|| {
+            Error::new(item.span(), "this derive only applies to type definitions")
+        })?;
+        let visitor_ident = Ident::new(&format!("{ident}Visitor"), Span::call_site());
+
+        Ok(quote!(
+            struct #visitor_ident;
+
+            impl<'de> ::serde::de::Visitor<'de> for #visitor_ident {
+                type Value = #ident;
+
+                fn visit_str<E>(self, v: &str) -> ::std::result::Result<Self::Value, E>
+                where
+                    E: ::serde::de::Error,
+                {
+                    v.parse().or_else(|e| ::std::result::Result::Err(E::custom(format!("{e:?}"))))
+                }
+
+                fn expecting(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                    ::std::write!(
+                        f,
+                        "a string that can be parsed by `<{} as FromStr>::from_str`",
+                        ::std::stringify!(#ident)
+                    )
+                }
+            }
+
+            impl<'de> ::serde::de::Deserialize<'de> for #ident {
+                fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+                where
+                    D: ::serde::de::Deserializer<'de>,
+                {
+                    deserializer.deserialize_str(#visitor_ident)
+                }
+            }
+        ))
     })
 }
