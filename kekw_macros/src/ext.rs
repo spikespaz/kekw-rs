@@ -54,7 +54,7 @@ impl AttributesExt for Vec<Attribute> {
         I: ?Sized,
         Ident: PartialEq<I>,
     {
-        self.find_by_ident(ident).and_then(|i| Some(self.remove(i)))
+        self.find_by_ident(ident).map(|i| self.remove(i))
     }
 }
 
