@@ -9,8 +9,8 @@ use quote::quote;
 use syn::parse::{Parse, Parser};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::token::Comma;
-use syn::{Error, Expr, ExprLit, Field, Ident, Index, ItemEnum, ItemStruct, Lit, LitStr, Variant};
+use syn::token::{Comma, Mut};
+use syn::{Error, Expr, ExprLit, Ident, Index, ItemEnum, ItemStruct, Lit, LitStr, Variant};
 
 use self::ext::*;
 
@@ -176,14 +176,14 @@ pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
             ..
         } = ItemStruct::parse.parse(item)?;
 
-        let (field_index, field_ident, target_ty) = fields
+        let (field_index, field_ident, target_ty, mutable) = fields
             .iter()
             .enumerate()
-            .find_map(|(i, field)| match field {
-                Field {
-                    attrs, ident, ty, ..
-                } if attrs.find_by_ident(DEREF_FIELD_ATTRIBUTE).is_some() => Some((i, ident, ty)),
-                _ => None,
+            .find_map(|(i, field)| {
+                field
+                    .attrs
+                    .get_by_ident(DEREF_FIELD_ATTRIBUTE)
+                    .map(|attr| (i, &field.ident, &field.ty, attr.parse_args::<Mut>().is_ok()))
             })
             .ok_or(Error::new(
                 fields.span(),
@@ -193,28 +193,45 @@ pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
                 ),
             ))?;
 
-        if let Some(field_ident) = field_ident {
-            Ok(quote! {
-                impl #generics ::std::ops::Deref for #ident #generics {
-                    type Target = #target_ty;
+        macro_rules! impl_deref_new_type {
+            ($field_name:ident) => {
+                quote!(
+                    impl #generics ::std::ops::Deref for #ident #generics {
+                        type Target = #target_ty;
 
-                    fn deref(&self) -> &Self::Target {
-                        &self.#field_ident
+                        fn deref(&self) -> &Self::Target {
+                            &self.#$field_name
+                        }
                     }
-                }
-            })
+                )
+            };
+            (mut $field_name:ident) => {
+                quote!(
+                    impl #generics ::std::ops::DerefMut for #ident #generics {
+                        fn deref_mut(&mut self) -> &mut Self::Target {
+                            &mut self.#$field_name
+                        }
+                    }
+                )
+            };
+        }
+
+        let mut tokens = TokenStream2::new();
+
+        if let Some(field_ident) = field_ident {
+            tokens.extend(impl_deref_new_type!(field_ident));
+            if mutable {
+                tokens.extend(impl_deref_new_type!(mut field_ident));
+            }
         } else {
             let field_index = Index::from(field_index);
-            Ok(quote! {
-                impl #generics ::std::ops::Deref for #ident #generics {
-                    type Target = #target_ty;
-
-                    fn deref(&self) -> &Self::Target {
-                        &self.#field_index
-                    }
-                }
-            })
+            tokens.extend(impl_deref_new_type!(field_index));
+            if mutable {
+                tokens.extend(impl_deref_new_type!(mut field_index));
+            }
         }
+
+        Ok(tokens)
     })
 }
 
@@ -242,7 +259,6 @@ impl VariantStrings {
         }
         Ok(Self(map))
     }
-
     fn as_iters(&self) -> (Vec<&Ident>, Vec<&LitStr>) {
         (self.keys().collect(), self.values().collect())
     }
