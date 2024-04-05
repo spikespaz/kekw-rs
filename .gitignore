@@ -3,6 +3,7 @@
 
 # Rust
 /target/
+_scratch.rs
 
 # Nix
 /result
