@@ -20,12 +20,18 @@ static DEBUG_EXPRESSION_ATTRIBUTE: &str = "debug";
 static FROM_STRING_ATTRIBUTE: &str = "from_str";
 static DEREF_FIELD_ATTRIBUTE: &str = "deref";
 
+pub(crate) fn proc_macro_impl(tokens: impl FnOnce() -> syn::Result<TokenStream2>) -> TokenStream1 {
+    tokens()
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
 /// Derivers implement `AsRef<str>`.
 ///
 /// Define static strings per variant with the `static_str` attribute.
 #[proc_macro_derive(VariantStrings, attributes(static_str))]
 pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
-    crate::proc_macro_impl! {
+    proc_macro_impl(|| {
         let ItemEnum {
             ident,
             generics,
@@ -45,7 +51,7 @@ pub fn derive_variant_strings(item: TokenStream1) -> TokenStream1 {
                 }
             }
         ))
-    }
+    })
 }
 
 macro_rules! impl_derive_format_strings {
@@ -59,7 +65,7 @@ macro_rules! impl_derive_format_strings {
         $(#[$meta])*
         #[proc_macro_derive($derive, attributes(static_str, debug))]
         pub fn $ident(item: TokenStream1) -> TokenStream1 {
-            crate::proc_macro_impl! {
+            proc_macro_impl(|| {
                 let ItemEnum {
                     ident,
                     generics,
@@ -70,7 +76,11 @@ macro_rules! impl_derive_format_strings {
                 let mut str_map = VariantStrings::from_variants(STATIC_STRING_ATTRIBUTE, &mut variants)?;
                 let expr_map = VariantExprs::from_variants($attr_name, &mut variants)?;
 
-                expr_map.keys().for_each(|k| if str_map.contains_key(k) { str_map.remove(k); });
+                expr_map.keys().for_each(|k| {
+                    if str_map.contains_key(k) {
+                        str_map.remove(k);
+                    }
+                });
 
                 let (str_variants, str_values) = str_map.as_iters();
                 let (variants, values) = expr_map.as_iters();
@@ -85,7 +95,7 @@ macro_rules! impl_derive_format_strings {
                         }
                     }
                 ))
-            }
+            })
         }
     };
 }
@@ -120,7 +130,7 @@ impl_derive_format_strings!(
 
 #[proc_macro_derive(VariantFromStr, attributes(static_str, from_str))]
 pub fn derive_variant_from_str(item: TokenStream1) -> TokenStream1 {
-    crate::proc_macro_impl! {
+    proc_macro_impl(|| {
         let ItemEnum {
             ident,
             generics,
@@ -131,7 +141,11 @@ pub fn derive_variant_from_str(item: TokenStream1) -> TokenStream1 {
         let mut str_map = VariantStrings::from_variants(STATIC_STRING_ATTRIBUTE, &mut variants)?;
         let from_map = VariantExprs::from_variants(FROM_STRING_ATTRIBUTE, &mut variants)?;
 
-        from_map.keys().for_each(|k| if str_map.contains_key(k) { str_map.remove(k); });
+        from_map.keys().for_each(|k| {
+            if str_map.contains_key(k) {
+                str_map.remove(k);
+            }
+        });
 
         let (str_variants, str_values) = str_map.as_iters();
         let (variants, values) = from_map.as_iters();
@@ -149,12 +163,12 @@ pub fn derive_variant_from_str(item: TokenStream1) -> TokenStream1 {
                 }
             }
         ))
-    }
+    })
 }
 
 #[proc_macro_derive(DerefNewType, attributes(deref))]
 pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
-    crate::proc_macro_impl! {
+    proc_macro_impl(|| {
         let ItemStruct {
             ident,
             generics,
@@ -166,31 +180,20 @@ pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
             .iter()
             .enumerate()
             .find_map(|(i, field)| match field {
-                Field { attrs, ident, ty, .. } if attrs.find_by_ident(DEREF_FIELD_ATTRIBUTE).is_some() => {
-                    Some((i, ident, ty))
-                },
-                _ => None
-            }).ok_or(Error::new(
+                Field {
+                    attrs, ident, ty, ..
+                } if attrs.find_by_ident(DEREF_FIELD_ATTRIBUTE).is_some() => Some((i, ident, ty)),
+                _ => None,
+            })
+            .ok_or(Error::new(
                 fields.span(),
-                format!("require a single field to me marked with `#[{}]`", DEREF_FIELD_ATTRIBUTE)
+                format!(
+                    "require a single field to be marked with `#[{}]`",
+                    DEREF_FIELD_ATTRIBUTE
+                ),
             ))?;
 
-        // macro_rules! impl_deref {
-        //     ($ident:expr, $generics:expr, $target_ty:expr, $field_name:expr) => {
-        //         quote! {
-        //             impl #$generics ::std::ops::Deref for #$ident #$generics {
-        //                 type Target = #$target_ty;
-
-        //                 fn deref(&self) -> &Self::Target {
-        //                     &self.#$field_name
-        //                 }
-        //             }
-        //         }
-        //     };
-        // }
-
         if let Some(field_ident) = field_ident {
-            // Ok(impl_deref!(ident, generics, target_ty, field_ident))
             Ok(quote! {
                 impl #generics ::std::ops::Deref for #ident #generics {
                     type Target = #target_ty;
@@ -201,7 +204,6 @@ pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
                 }
             })
         } else {
-            // Ok(impl_deref!(ident, generics, target_ty, Index::from(field_index)))
             let field_index = Index::from(field_index);
             Ok(quote! {
                 impl #generics ::std::ops::Deref for #ident #generics {
@@ -213,7 +215,7 @@ pub fn derive_deref_new_type(item: TokenStream1) -> TokenStream1 {
                 }
             })
         }
-    }
+    })
 }
 
 struct VariantStrings(HashMap<Ident, LitStr>);
