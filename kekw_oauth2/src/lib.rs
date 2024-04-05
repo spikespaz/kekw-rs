@@ -1,5 +1,7 @@
 pub mod types {
-    pub mod scopes;
+    mod scopes;
+
+    pub use scopes::*;
 }
 
 pub mod endpoints;
