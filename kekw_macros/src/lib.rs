@@ -1,25 +1,22 @@
 mod ext;
-
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+mod parsers;
 
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::parse::{Parse, Parser};
-use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::token::{Comma, Mut};
-use syn::{Error, Expr, ExprLit, Ident, Index, ItemEnum, ItemStruct, Lit, LitStr, Variant};
+use syn::token::Mut;
+use syn::{Error, Index, ItemEnum, ItemStruct};
 
 use self::ext::*;
+use self::parsers::{VariantExprs, VariantStrings};
 
 static STATIC_STRING_ATTRIBUTE: &str = "static_str";
 static DISPLAY_EXPRESSION_ATTRIBUTE: &str = "display";
 static DEBUG_EXPRESSION_ATTRIBUTE: &str = "debug";
 static FROM_STRING_ATTRIBUTE: &str = "from_str";
 static DEREF_FIELD_ATTRIBUTE: &str = "deref";
-static FROM_FIELD_TYPE_ATTRIBUTE: &str = "from";
 
 pub(crate) fn proc_macro_impl(tokens: impl FnOnce() -> syn::Result<TokenStream2>) -> TokenStream1 {
     tokens()
@@ -259,81 +256,4 @@ pub fn derive_new_type_from(item: TokenStream1) -> TokenStream1 {
             ))
         }
     })
-}
-
-struct VariantStrings(HashMap<Ident, LitStr>);
-
-struct VariantExprs(HashMap<Ident, Expr>);
-
-impl VariantStrings {
-    fn from_variants<I>(ident: &I, variants: &mut Punctuated<Variant, Comma>) -> syn::Result<Self>
-    where
-        I: ?Sized,
-        Ident: PartialEq<I>,
-    {
-        let mut map = HashMap::new();
-        for variant in variants.iter_mut() {
-            if let Some(attr) = variant.attrs.pop_by_ident(ident) {
-                if let Expr::Lit(ExprLit {
-                    attrs: _,
-                    lit: Lit::Str(variant_str),
-                }) = attr.parse_args::<Expr>()?
-                {
-                    map.insert(variant.ident.clone(), variant_str);
-                }
-            }
-        }
-        Ok(Self(map))
-    }
-    fn as_iters(&self) -> (Vec<&Ident>, Vec<&LitStr>) {
-        (self.keys().collect(), self.values().collect())
-    }
-}
-
-impl Deref for VariantStrings {
-    type Target = HashMap<Ident, LitStr>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for VariantStrings {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl VariantExprs {
-    fn from_variants<I>(ident: &I, variants: &mut Punctuated<Variant, Comma>) -> syn::Result<Self>
-    where
-        I: ?Sized,
-        Ident: PartialEq<I>,
-    {
-        let mut map = HashMap::new();
-        for variant in variants.iter_mut() {
-            if let Some(attr) = variant.attrs.pop_by_ident(ident) {
-                map.insert(variant.ident.clone(), attr.parse_args::<Expr>()?);
-            }
-        }
-        Ok(Self(map))
-    }
-
-    fn as_iters(&self) -> (Vec<&Ident>, Vec<&Expr>) {
-        (self.keys().collect(), self.values().collect())
-    }
-}
-
-impl Deref for VariantExprs {
-    type Target = HashMap<Ident, Expr>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for VariantExprs {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
