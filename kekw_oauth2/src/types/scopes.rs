@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 // Adapted from:
 // <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
 use kekw_macros::{
@@ -210,6 +212,25 @@ impl Scopes {
             .map(AsRef::as_ref)
             .collect::<Vec<&str>>()
             .join(" ")
+    }
+}
+
+impl FromIterator<Scope> for Scopes {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Scope>,
+    {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl FromStr for Scopes {
+    type Err = <Scope as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.split_whitespace()
+            .map(Scope::from_str)
+            .collect::<Result<Self, Self::Err>>()
     }
 }
 
