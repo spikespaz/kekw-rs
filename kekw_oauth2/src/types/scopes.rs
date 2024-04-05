@@ -1,12 +1,12 @@
+//! Adapted from:
+//! <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
+
 use std::str::FromStr;
 
-// Adapted from:
-// <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
 use kekw_macros::{
     DebugExprs, DerefNewType, DeserializeFromStr, DisplayStrings, NewTypeFrom, VariantFromStr,
     VariantStrings,
 };
-use serde::{Serialize, Serializer};
 
 #[derive(
     Copy, Clone, DebugExprs, DisplayStrings, VariantStrings, VariantFromStr, DeserializeFromStr,
@@ -237,11 +237,59 @@ impl FromStr for Scopes {
     }
 }
 
-impl Serialize for Scopes {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.as_string())
+mod serde_impl {
+    use serde::de::Visitor;
+    use serde::{Deserialize, Serialize};
+
+    use super::*;
+
+    impl Serialize for Scopes {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            serializer.serialize_str(&self.as_string())
+        }
+    }
+
+    struct ScopesVisitor;
+
+    impl<'de> Visitor<'de> for ScopesVisitor {
+        type Value = Scopes;
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            v.parse().or_else(|e| Err(E::custom(format!("{e:?}"))))
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>,
+        {
+            let mut vec = Vec::new();
+            while let Some(elem) = seq.next_element()? {
+                vec.push(elem);
+            }
+            Ok(vec.into())
+        }
+
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(
+                f,
+                "a string or sequence of strings that can be parsed by `<{} as FromStr>::from_str`",
+                stringify!(Scopes)
+            )
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Scopes {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::de::Deserializer<'de>,
+        {
+            deserializer.deserialize_any(ScopesVisitor)
+        }
     }
 }
