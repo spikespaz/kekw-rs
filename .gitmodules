@@ -1,0 +1,3 @@
+[submodule "kekw_types/serde_urlencoded"]
+	path = kekw_types/serde_urlencoded
+	url = git@github.com:nox/serde_urlencoded.git

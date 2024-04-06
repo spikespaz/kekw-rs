@@ -1,6 +1,7 @@
 //! Adapted from:
 //! <https://github.com/twitch-rs/twitch_oauth2/blob/e8bfe4e80e4c5a53f1b0ed77cf85db0fcde3aa31/src/scopes.rs>
 
+use std::fmt;
 use std::str::FromStr;
 
 use kekw_macros::{
@@ -206,15 +207,20 @@ pub enum Scope {
     WhispersRead,
 }
 
-#[derive(Clone, DerefNewType, NewTypeFrom)]
+#[derive(Clone, Debug, DerefNewType, NewTypeFrom)]
 pub struct Scopes(#[deref(mut)] Vec<Scope>);
 
-impl Scopes {
-    pub fn as_string(&self) -> String {
-        self.iter()
-            .map(AsRef::as_ref)
-            .collect::<Vec<&str>>()
-            .join(" ")
+impl fmt::Display for Scopes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut is_first = true;
+        for scope in self.iter() {
+            if !is_first {
+                write!(f, " ")?;
+            }
+            write!(f, "{}", scope)?;
+            is_first = false;
+        }
+        Ok(())
     }
 }
 
@@ -248,7 +254,7 @@ mod serde_impl {
         where
             S: serde::Serializer,
         {
-            serializer.serialize_str(&self.as_string())
+            serializer.serialize_str(&self.to_string())
         }
     }
 
@@ -261,7 +267,7 @@ mod serde_impl {
         where
             E: serde::de::Error,
         {
-            v.parse().or_else(|e| Err(E::custom(e)))
+            v.parse().map_err(|e| E::custom(e))
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
