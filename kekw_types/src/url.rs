@@ -59,14 +59,13 @@ where
         I: IntoIterator<Item = (K, Option<V>)>,
     {
         let mut buf = String::new();
-        iter.into_iter()
-            .enumerate()
-            .for_each(|(i, pair)| match pair {
-                (lhs, Some(rhs)) if i == 0 => write!(buf, "?{}={}", lhs.as_ref(), rhs).unwrap(),
-                (lhs, Some(rhs)) => write!(buf, "&{}={}", lhs.as_ref(), rhs).unwrap(),
-                (lhs, None) if i == 0 => write!(buf, "?{}", lhs.as_ref()).unwrap(),
-                (lhs, None) => write!(buf, "&{}", lhs.as_ref()).unwrap(),
-            });
+        iter.into_iter().enumerate().for_each(|(i, pair)| {
+            let sep = if i == 0 { '?' } else { '&' };
+            match pair {
+                (lhs, Some(rhs)) => write!(buf, "{sep}{}={rhs}", lhs.as_ref()).unwrap(),
+                (lhs, None) => write!(buf, "{sep}{}", lhs.as_ref()).unwrap(),
+            }
+        });
         Self(Cow::Owned(buf))
     }
 }
