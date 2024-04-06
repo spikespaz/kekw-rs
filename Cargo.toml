@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "kekw",
     "kekw_api",
+    "kekw_types",
     "kekw_bot",
     "kekw_client",
     "kekw_endpoints",

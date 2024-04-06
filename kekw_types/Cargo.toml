@@ -1,0 +1,19 @@
+[package]
+name = "kekw_types"
+version.workspace = true
+description.workspace = true
+homepage.workspace = true
+# documentation.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+edition = "2021"
+
+publish = false
+
+[features]
+docs = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
