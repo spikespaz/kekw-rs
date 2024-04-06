@@ -1,43 +1,98 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Write as _;
 
-use kekw_macros::{DerefNewType, NewTypeFrom};
+use kekw_macros::DerefNewType;
+use url::Url;
 
-// #[derive(Debug, Clone, Default, DerefNewType)]
-// struct QueryPairs<'a> {
-//     source: Cow<'a, str>,
-//     #[deref]
-//     pairs: &'a [(&'a str, Option<&'a str>)],
-// }
+#[derive(Debug, Default, DerefNewType, PartialEq)]
+pub struct QueryPairs<'s>(#[deref] Cow<'s, str>);
 
-#[derive(Debug, Clone, Default, DerefNewType, NewTypeFrom)]
-pub struct QueryPairs<'a>(#[deref] Vec<(&'a str, Option<&'a str>)>);
+impl QueryPairs<'_> {
+    pub fn as_pairs(&self) -> impl Iterator<Item = (&str, Option<&str>)> {
+        self.strip_prefix('/')
+            .and_then(|s| s.strip_prefix('?'))
+            .unwrap_or(self)
+            .split('&')
+            .map(|s| {
+                s.split_once('=')
+                    .map(|(lhs, rhs)| (lhs, Some(rhs)))
+                    .unwrap_or((s, None))
+            })
+    }
 
-impl<'a> From<&'a str> for QueryPairs<'a> {
-    fn from(s: &'a str) -> Self {
-        Self(
-            s.strip_prefix('/')
-                .and_then(|s| s.strip_prefix('?'))
-                .unwrap_or(s)
-                .split('&')
-                .map(|s| {
-                    s.split_once('=')
-                        .map(|(lhs, rhs)| (lhs, Some(rhs)))
-                        .unwrap_or((s, None))
-                })
-                .collect::<Vec<_>>(),
-        )
+    pub fn into_url<U>(self, base: U) -> Result<Url, <Url as TryFrom<U>>::Error>
+    where
+        Url: TryFrom<U>,
+    {
+        let mut url = Url::try_from(base)?;
+        url.set_query(Some(self.as_ref()));
+        Ok(url)
     }
 }
 
-impl<'a> QueryPairs<'a> {
-    pub fn to_vec(self) -> Vec<(String, Option<String>)> {
-        self.iter()
-            .map(|(lhs, rhs)| ((*lhs).to_owned(), (*rhs).map(ToOwned::to_owned)))
-            .collect()
+impl From<String> for QueryPairs<'_> {
+    fn from(value: String) -> Self {
+        Self(Cow::Owned(value))
     }
+}
 
-    pub fn to_map(self) -> HashMap<String, Option<String>> {
-        HashMap::from_iter(self.to_vec())
+impl<'s> From<&'s str> for QueryPairs<'s> {
+    fn from(value: &'s str) -> Self {
+        Self(Cow::Borrowed(value))
+    }
+}
+
+impl fmt::Display for QueryPairs<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self)
+    }
+}
+
+impl<'s, K, V> FromIterator<(K, Option<V>)> for QueryPairs<'s>
+where
+    K: AsRef<str>,
+    V: fmt::Display,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K, Option<V>)>,
+    {
+        let mut buf = String::new();
+        iter.into_iter()
+            .enumerate()
+            .for_each(|(i, pair)| match pair {
+                (lhs, Some(rhs)) if i == 0 => write!(buf, "?{}={}", lhs.as_ref(), rhs).unwrap(),
+                (lhs, Some(rhs)) => write!(buf, "&{}={}", lhs.as_ref(), rhs).unwrap(),
+                (lhs, None) if i == 0 => write!(buf, "?{}", lhs.as_ref()).unwrap(),
+                (lhs, None) => write!(buf, "&{}", lhs.as_ref()).unwrap(),
+            });
+        Self(Cow::Owned(buf))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::QueryPairs;
+
+    #[test]
+    fn test_eq() {
+        let query = QueryPairs::from_iter([
+            ("foo", Some("a".into())),
+            ("bar", Some("b".into())),
+            ("baz", Some(String::from("c"))),
+            ("quox", None),
+            ("foobar", Some(5.to_string())),
+            ("foobaz", Some("".into())),
+            ("foobar", Some(8.9.to_string())),
+        ]);
+
+        dbg!(&query);
+        eprintln!("{}", &query);
+
+        assert_eq!(
+            query.to_string(),
+            "?foo=a&bar=b&baz=c&quox&foobar=5&foobaz=&foobar=8.9"
+        )
     }
 }
