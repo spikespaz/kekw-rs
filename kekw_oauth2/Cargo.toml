@@ -18,6 +18,7 @@ docs = []
 
 [dependencies]
 kekw_macros = { path = "../kekw_macros" }
+aliri_braid = { git = "https://github.com/spikespaz/aliri_braid_secret" }
 # http-types = { version = "2", default-features = false }
 typed-builder = "0.18"
 serde = { version = "1", features = ["derive"] }

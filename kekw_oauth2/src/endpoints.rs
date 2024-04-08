@@ -1,5 +1,6 @@
 use std::fmt;
 
+use aliri_braid::braid;
 use kekw_macros::QueryParams;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
@@ -18,12 +19,18 @@ fn percent_encode(source: impl ToString) -> String {
     percent_encoding::percent_encode(source.to_string().as_ref(), NON_ALPHANUMERIC).collect()
 }
 
+#[braid(secret, serde)]
+pub struct ClientId;
+
+#[braid(secret, serde)]
+pub struct AuthFlowState;
+
 /// [Authorization code grant flow][1]
 ///
 /// [1]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
 #[derive(Serialize, Deserialize, TypedBuilder, QueryParams)]
 pub struct AuthCodeQuery {
-    pub client_id: String,
+    pub client_id: ClientId,
     #[builder(setter(strip_bool))]
     #[query_param(skip_if = |x: &bool| !x)]
     pub force_verify: bool,
@@ -32,7 +39,7 @@ pub struct AuthCodeQuery {
     pub scope: Scopes,
     #[builder(default, setter(strip_option))]
     #[query_param(skip_if = Option::is_none, proxy = unwrap_option)]
-    pub state: Option<String>,
+    pub state: Option<AuthFlowState>,
 }
 
 impl From<AuthCodeQuery> for Url {
@@ -47,14 +54,14 @@ impl From<AuthCodeQuery> for Url {
 pub struct AuthCodePassed {
     pub code: String,
     pub scope: usize,
-    pub state: String,
+    pub state: AuthFlowState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AuthCodeDenied {
     pub error: String,
     pub error_description: Scopes,
-    pub state: String,
+    pub state: AuthFlowState,
 }
 
 impl fmt::Display for AuthCodeDenied {

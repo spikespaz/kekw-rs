@@ -3,6 +3,24 @@
 version = 3
 
 [[package]]
+name = "aliri_braid"
+version = "0.4.0"
+source = "git+https://github.com/spikespaz/aliri_braid_secret#177d37a29c31f9b9c1ff452b00b15ca7ca5eee18"
+dependencies = [
+ "aliri_braid_impl",
+]
+
+[[package]]
+name = "aliri_braid_impl"
+version = "0.4.0"
+source = "git+https://github.com/spikespaz/aliri_braid_secret#177d37a29c31f9b9c1ff452b00b15ca7ca5eee18"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "form_urlencoded"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -60,6 +78,7 @@ dependencies = [
 name = "kekw_oauth2"
 version = "0.0.0"
 dependencies = [
+ "aliri_braid",
  "kekw_macros",
  "percent-encoding",
  "serde",
