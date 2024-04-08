@@ -1,4 +1,6 @@
-use syn::{Attribute, Ident, Item, ItemEnum};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
+use syn::{Attribute, Field, Fields, FieldsNamed, Ident, Item, ItemEnum, Path, PathSegment, Type};
 
 pub(crate) trait AttributesExt {
     fn find_by_ident<I>(&self, ident: &I) -> Option<usize>
@@ -75,6 +77,40 @@ impl ItemExt for Item {
             Item::Type(it) => Some(&it.ident),
             Item::Union(it) => Some(&it.ident),
             _ => None,
+        }
+    }
+}
+
+pub(crate) trait FieldsExt {
+    fn named(&self) -> Option<&Punctuated<Field, Comma>>;
+
+    fn named_mut(&mut self) -> Option<&mut Punctuated<Field, Comma>>;
+
+    fn into_named(self) -> Option<Punctuated<Field, Comma>>;
+}
+
+impl FieldsExt for Fields {
+    fn named(&self) -> Option<&Punctuated<Field, Comma>> {
+        if let Self::Named(FieldsNamed { named, .. }) = self {
+            Some(named)
+        } else {
+            None
+        }
+    }
+
+    fn named_mut(&mut self) -> Option<&mut Punctuated<Field, Comma>> {
+        if let Self::Named(FieldsNamed { named, .. }) = self {
+            Some(named)
+        } else {
+            None
+        }
+    }
+
+    fn into_named(self) -> Option<Punctuated<Field, Comma>> {
+        if let Self::Named(FieldsNamed { named, .. }) = self {
+            Some(named)
+        } else {
+            None
         }
     }
 }
