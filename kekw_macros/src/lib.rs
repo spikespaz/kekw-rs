@@ -7,16 +7,31 @@ use quote::quote;
 use syn::parse::{Parse, Parser};
 use syn::spanned::Spanned;
 use syn::token::Mut;
-use syn::{Error, Ident, Index, Item, ItemEnum, ItemStruct};
+use syn::{Error, Expr, Field, Ident, Index, Item, ItemEnum, ItemStruct};
 
 use self::ext::*;
 use self::parsers::{VariantExprs, VariantStrings};
 
+// For the VariantStrings, DisplayStrings, DebugExprs and VariantFromStr derives.
 static STATIC_STRING_ATTRIBUTE: &str = "static_str";
+
+// For the DisplayStrings derive.
 static DISPLAY_EXPRESSION_ATTRIBUTE: &str = "display";
+
+// For the DebugExprs derive.
 static DEBUG_EXPRESSION_ATTRIBUTE: &str = "debug";
+
+// For the VariantFromStr derive.
 static FROM_STRING_ATTRIBUTE: &str = "from_str";
+
+// For the NewTypeDeref derive.
 static DEREF_FIELD_ATTRIBUTE: &str = "deref";
+
+// For the QueryParams derive.
+static QUERY_PARAM_ATTRIBUTE: &str = "query_param";
+static SKIP_NAMED_FIELD_META_IDENT: &str = "skip";
+static SKIP_IF_PREDICATE_META_IDENT: &str = "skip_if";
+static PROXY_PREDICATE_META_IDENT: &str = "proxy";
 
 pub(crate) fn proc_macro_impl(tokens: impl FnOnce() -> syn::Result<TokenStream2>) -> TokenStream1 {
     tokens()
@@ -310,6 +325,87 @@ pub fn derive_deserialize_from_str(item: TokenStream1) -> TokenStream1 {
                     D: ::serde::de::Deserializer<'de>,
                 {
                     deserializer.deserialize_str(#visitor_ident)
+                }
+            }
+        ))
+    })
+}
+
+#[proc_macro_derive(QueryParams, attributes(query_param))]
+pub fn derive_query_params(item: TokenStream1) -> TokenStream1 {
+    proc_macro_impl(|| {
+        let ItemStruct {
+            ident,
+            generics,
+            fields,
+            ..
+        } = ItemStruct::parse.parse(item)?;
+
+        let fields = fields.named().ok_or_else(|| {
+            Error::new(
+                fields.span(),
+                "can only derive `QueryPairs` for structs which have named fields",
+            )
+        })?;
+
+        let mut fmt_body = TokenStream2::new();
+
+        for (i, field) in fields.into_iter().enumerate() {
+            let Field { attrs, ident, .. } = field;
+            let field_ident = ident.as_ref().unwrap();
+
+            let mut skip = false;
+            let mut skip_if = None;
+            let mut proxy = None;
+
+            if let Some(attr) = attrs.get_by_ident(QUERY_PARAM_ATTRIBUTE) {
+                attr.parse_nested_meta(|meta| {
+                    #[allow(clippy::unit_arg)]
+                    if meta.path.is_ident(SKIP_NAMED_FIELD_META_IDENT) {
+                        Ok(skip = true)
+                    } else if meta.path.is_ident(SKIP_IF_PREDICATE_META_IDENT) {
+                        Ok(skip_if = Some(meta.value()?.parse::<Expr>()?))
+                    } else if meta.path.is_ident(PROXY_PREDICATE_META_IDENT) {
+                        Ok(proxy = Some(meta.value()?.parse::<Expr>()?))
+                    } else {
+                        Err(Error::new(meta.path.span(), "unknown meta"))
+                    }
+                })?;
+            };
+
+            if skip {
+                continue;
+            }
+
+            let sep = if i == 0 { '?' } else { '&' };
+            let format = format!("{}{}={{}}", sep, field_ident);
+
+            let value_expr = if let Some(proxy) = proxy {
+                quote!((#proxy)(&self.#field_ident))
+            } else {
+                quote!(&self.#field_ident)
+            };
+
+            let tokens = if let Some(skip_if) = skip_if {
+                quote!(
+                    if !(#skip_if)(&self.#field_ident) {
+                        write!(f, #format, #value_expr)?;
+                    }
+                )
+            } else {
+                quote!(
+                    write!(f, #format, #value_expr)?;
+                )
+            };
+
+            fmt_body.extend(tokens);
+        }
+
+        Ok(quote!(
+            impl #generics ::std::fmt::Display for #ident #generics {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    #fmt_body
+                    Ok(())
                 }
             }
         ))
