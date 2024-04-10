@@ -377,8 +377,11 @@ pub fn derive_query_params(item: TokenStream1) -> TokenStream1 {
                 continue;
             }
 
-            let sep = if i == 0 { '?' } else { '&' };
-            let format = format!("{}{}={{}}", sep, field_ident);
+            let format = if i == 0 {
+                format!("{field_ident}={{:#}}")
+            } else {
+                format!("&{field_ident}={{:#}}")
+            };
 
             let value_expr = if let Some(proxy) = proxy {
                 quote!((#proxy)(&self.#field_ident))
