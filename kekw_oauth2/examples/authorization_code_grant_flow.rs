@@ -7,7 +7,7 @@ use kekw_oauth2::types::{Scope, Scopes};
 use once_cell::sync::Lazy;
 use url::Url;
 
-const AUTH_MAX_TRIES: usize = 3;
+const AUTH_MAX_TRIES: usize = 5;
 static AUTH_LISTEN_PORT: u16 = 8833;
 static AUTH_LISTEN_IPS: &[&str] = &["127.0.0.1", "0.0.0.0"];
 static REDIRECT_URI: &str = "http://localhost:8833";

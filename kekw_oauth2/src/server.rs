@@ -5,6 +5,7 @@ use futures_lite::{AsyncBufReadExt as _, AsyncWriteExt as _, StreamExt as _};
 use crate::endpoints::{AuthCodeAllowed, AuthCodeDenied};
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     #[error("{0}")]
     Io(#[from] std::io::Error),
@@ -27,24 +28,39 @@ pub async fn await_auth_code(
         let Some(stream) = incoming.next().await else {
             break Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
-                "TCP stream unexpectedly yielded None",
+                "TCP stream unexpectedly yielded `None`",
             )
             .into());
         };
         let stream = stream?;
-        match receive_query_params(stream).await {
-            Ok(Some(query)) => break parse_query_params(query),
-            Ok(None) | Err(_) if attempt <= max_tries => {
+        let query = match receive_query_params(stream).await {
+            Ok(query) => query,
+            Err(e) if e.kind() == io::ErrorKind::InvalidData => {
+                // dbg!(e);
+                // Do not increase attempts, Twitch likes to send empty requests.
+                continue;
+            }
+            Err(e) if attempt < max_tries => {
+                dbg!(e);
                 attempt += 1;
                 continue;
             }
-            Ok(None) => todo!(),
             Err(e) => break Err(e.into()),
-        }
+        };
+        let res = match parse_query_params(query) {
+            Ok(allow) => Ok(allow),
+            Err(Error::AuthDenied(e)) if attempt < max_tries => {
+                dbg!(e);
+                attempt += 1;
+                continue;
+            }
+            Err(e) => Err(e),
+        };
+        break res;
     }
 }
 
-async fn receive_query_params(mut stream: TcpStream) -> io::Result<Option<String>> {
+async fn receive_query_params(mut stream: TcpStream) -> io::Result<String> {
     let mut reader = BufReader::new(&mut stream);
 
     let mut request_line = String::new();
@@ -81,16 +97,24 @@ async fn receive_query_params(mut stream: TcpStream) -> io::Result<Option<String
         }
     }
 
+    // dbg!(headers);
+
     let (_path, query) = path_and_query
         .split_once('?')
         .map(|(path, query)| (path, Some(query)))
         .unwrap_or_else(|| (path_and_query, None));
 
+    let query = query.ok_or(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "response from Twitch did not have query parameters",
+    ))?;
+
+    // Do I need to send an error back?
     stream
         .write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes())
         .await?;
 
-    Ok(query.map(ToString::to_string))
+    Ok(query.to_owned())
 }
 
 /// Incomplete: requires deserializing to be replaced with custom `Deserializer``.
