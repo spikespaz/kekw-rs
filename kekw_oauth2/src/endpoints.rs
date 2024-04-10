@@ -23,7 +23,10 @@ fn percent_encode(source: impl ToString) -> String {
 pub struct ClientId;
 
 #[braid(secret, serde)]
-pub struct AuthFlowState;
+pub struct AuthState;
+
+#[braid(secret, serde)]
+pub struct AuthCode;
 
 /// [Authorization code grant flow][1]
 ///
@@ -41,7 +44,7 @@ pub struct AuthCodeQuery {
     pub scope: Scopes,
     #[builder(default, setter(strip_option))]
     #[query_param(skip_if = Option::is_none, proxy = unwrap_option)]
-    pub state: Option<AuthFlowState>,
+    pub state: Option<AuthState>,
 }
 
 impl From<AuthCodeQuery> for Url {
@@ -52,18 +55,18 @@ impl From<AuthCodeQuery> for Url {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct AuthCodePassed {
-    pub code: String,
-    pub scope: usize,
-    pub state: AuthFlowState,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AuthCodeAllowed {
+    pub code: AuthCode,
+    pub scope: Scopes,
+    pub state: Option<AuthState>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AuthCodeDenied {
     pub error: String,
-    pub error_description: Scopes,
-    pub state: AuthFlowState,
+    pub error_description: String,
+    pub state: Option<AuthState>,
 }
 
 impl fmt::Display for AuthCodeDenied {
