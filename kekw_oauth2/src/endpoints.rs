@@ -35,6 +35,8 @@ pub struct AuthCodeQuery {
     #[query_param(skip_if = |x: &bool| !x)]
     pub force_verify: bool,
     pub redirect_uri: String,
+    #[builder(default = "code", setter(skip))]
+    response_type: &'static str,
     #[query_param(skip_if = Vec::is_empty, proxy = percent_encode)]
     pub scope: Scopes,
     #[builder(default, setter(strip_option))]
