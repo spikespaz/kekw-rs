@@ -1,4 +1,4 @@
-use async_net::{AsyncToSocketAddrs, TcpListener, TcpStream};
+use async_net::{AsyncToSocketAddrs, IpAddr, SocketAddr, TcpListener, TcpStream};
 use futures_lite::io::{self, BufReader};
 use futures_lite::{AsyncBufReadExt as _, AsyncWriteExt as _, StreamExt as _};
 
@@ -8,11 +8,19 @@ use crate::endpoints::{AuthCodeAllowed, AuthCodeDenied};
 #[non_exhaustive]
 pub enum Error {
     #[error("{0}")]
-    Io(#[from] std::io::Error),
+    Io(#[from] io::Error),
     #[error("{0}")]
     AuthDenied(#[from] AuthCodeDenied),
     #[error("{0}")]
     ParseQuery(#[from] serde_qs::Error),
+}
+
+/// Given a slice of strings and a port number, make an address for each pair
+/// for the TCP socket to listen on.
+pub fn make_socket_addrs(ips: &[impl AsRef<str>], port: u16) -> Vec<SocketAddr> {
+    ips.iter()
+        .map(|ip| SocketAddr::new(ip.as_ref().parse::<IpAddr>().unwrap(), port))
+        .collect()
 }
 
 pub async fn await_auth_code(
@@ -24,7 +32,6 @@ pub async fn await_auth_code(
 
     let mut attempt = 0;
     loop {
-        dbg!(attempt);
         let Some(stream) = incoming.next().await else {
             break Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
@@ -32,17 +39,20 @@ pub async fn await_auth_code(
             )
             .into());
         };
-        let stream = stream?;
-        let query = match receive_query_params(stream).await {
-            Ok(query) => query,
+        let mut stream = stream?;
+        let query = match receive_query_params(&mut stream).await {
+            Ok(query) => {
+                ok_200(&mut stream).await?;
+                query
+            }
             Err(e) if e.kind() == io::ErrorKind::InvalidData => {
-                // dbg!(e);
-                // Do not increase attempts, Twitch likes to send empty requests.
+                im_a_teapot_418(&mut stream).await?;
                 continue;
             }
             Err(e) if attempt < max_tries => {
                 dbg!(e);
                 attempt += 1;
+                // im_a_teapot_418(&mut stream).await?;
                 continue;
             }
             Err(e) => break Err(e.into()),
@@ -60,8 +70,24 @@ pub async fn await_auth_code(
     }
 }
 
-async fn receive_query_params(mut stream: TcpStream) -> io::Result<String> {
-    let mut reader = BufReader::new(&mut stream);
+#[rustfmt::skip]
+#[inline]
+async fn im_a_teapot_418(stream: &mut TcpStream) -> Result<(), io::Error> {
+    stream.write_all(
+        "HTTP/1.1 418 I'm a teapot\r\nContent-Type: text/html\r\n \
+        \r\n<h3 font=\"monospace\">I'm a teapot</h3>"
+            .as_bytes(),
+    )
+    .await
+}
+
+#[inline]
+async fn ok_200(stream: &mut TcpStream) -> Result<(), io::Error> {
+    stream.write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).await
+}
+
+async fn receive_query_params(stream: &mut TcpStream) -> io::Result<String> {
+    let mut reader = BufReader::new(stream);
 
     let mut request_line = String::new();
     reader.read_line(&mut request_line).await?;
@@ -108,11 +134,6 @@ async fn receive_query_params(mut stream: TcpStream) -> io::Result<String> {
         io::ErrorKind::InvalidData,
         "response from Twitch did not have query parameters",
     ))?;
-
-    // Do I need to send an error back?
-    stream
-        .write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes())
-        .await?;
 
     Ok(query.to_owned())
 }
