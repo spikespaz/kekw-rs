@@ -22,5 +22,9 @@ aliri_braid = { git = "https://github.com/spikespaz/aliri_braid_secret" }
 # http-types = { version = "2", default-features = false }
 typed-builder = "0.18"
 serde = { version = "1", features = ["derive"] }
-percent-encoding = "2.3"
-url = { version = "2.5", features = ["serde"] }
+percent-encoding = "2"
+url = { version = "2", features = ["serde"] }
+thiserror = "1"
+async-net = "2"
+futures-lite = "2"
+serde_qs = "0.13"                                # TODO: Remove this

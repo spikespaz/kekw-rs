@@ -4,6 +4,8 @@ pub mod types {
     pub use scopes::*;
 }
 
+pub mod server;
+
 pub mod endpoints;
 
 pub fn add(left: usize, right: usize) -> usize {
