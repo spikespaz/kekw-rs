@@ -27,4 +27,12 @@ url = { version = "2", features = ["serde"] }
 thiserror = "1"
 async-net = "2"
 futures-lite = "2"
-serde_qs = "0.13"                                # TODO: Remove this
+# TODO: Remove this
+serde_qs = "0.13"
+
+[dev-dependencies]
+futures = "0.3.30"
+once_cell = "1.19.0"
+open = "5.1.2"
+smol = "2.0.0"
+url = "2"
