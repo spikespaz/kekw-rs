@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_display_query() {
-        let compare = "?client_id=oogabooga&redirect_uri=https://localhost:8083&scope=analytics%3Aread%3Aextensions%20channel%3Abot";
+        let compare = "client_id=oogabooga&redirect_uri=https://localhost:8083&response_type=code&scope=analytics%3Aread%3Aextensions%20channel%3Abot";
         let data = AuthCodeQuery::builder()
             .client_id("oogabooga".into())
             .redirect_uri("https://localhost:8083".into())
