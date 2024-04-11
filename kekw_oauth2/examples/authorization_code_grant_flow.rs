@@ -1,10 +1,14 @@
-//! This example is for the [Authorization code grant flow](https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow).
+//! This example is for the [Authorization code grant flow][0].
 //! Please see the source code for this file.
+//!
+//! To run this example, you must register an Application on the Twitch
+//! [Developer Console][1], acquire the Client ID and Client Secret,
+//! and set the environment variables `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.
+//!
+//! [0]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
+//! [1]: https://dev.twitch.tv/console
 
-use std::net::SocketAddr;
-
-use async_net::IpAddr;
-use kekw_oauth2::endpoints::{AuthCodeQuery, ClientId};
+use kekw_oauth2::endpoints::{AuthCodeQuery, AuthTokenReqBody, ClientId, ClientSecret};
 use kekw_oauth2::server::*;
 use kekw_oauth2::types::Scopes;
 use once_cell::sync::Lazy;

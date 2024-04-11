@@ -28,9 +28,15 @@ pub struct AuthState;
 #[braid(secret, serde)]
 pub struct AuthCode;
 
-/// [Authorization code grant flow][1]
+/// [Authorization code grant flow][0] during the [first][1] step.
 ///
-/// [1]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
+/// [0]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
+/// [1]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#get-the-user-to-authorize-your-app
+///
+/// This is built as query parameters for a [`Url`].
+/// Turn this into a URL with [`Into::into`] for [`From::from`].
+/// Tell the user to open this URL, then open an HTTP server that waits for
+/// Twitch to send it a code, [`AuthCodeAllowed`], or a failure, [`AuthCodeDenied`].
 #[derive(Serialize, Deserialize, TypedBuilder, QueryParams)]
 pub struct AuthCodeQuery {
     pub client_id: ClientId,
