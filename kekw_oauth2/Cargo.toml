@@ -14,12 +14,14 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-docs = []
+http-types = ["dep:http-types"]
+isahc = ["dep:isahc"]
+
+docs = ["http-types", "isahc"]
 
 [dependencies]
 kekw_macros = { path = "../kekw_macros" }
 aliri_braid = { git = "https://github.com/spikespaz/aliri_braid_secret" }
-# http-types = { version = "2", default-features = false }
 typed-builder = "0.18"
 serde = { version = "1", features = ["derive"] }
 percent-encoding = "2"
@@ -29,6 +31,10 @@ async-net = "2"
 futures-lite = "2"
 # TODO: Remove this
 serde_qs = "0.13"
+http-types = { version = "2", optional = true, default-features = false }
+isahc = { version = "1", optional = true, default-features = false }
+csrf = "0.4.1"
+serde_json = "1.0.115"
 
 [dev-dependencies]
 futures = "0.3.30"
