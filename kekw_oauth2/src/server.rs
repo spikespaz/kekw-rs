@@ -81,9 +81,16 @@ async fn im_a_teapot_418(stream: &mut TcpStream) -> Result<(), io::Error> {
     .await
 }
 
+#[rustfmt::skip]
 #[inline]
 async fn ok_200(stream: &mut TcpStream) -> Result<(), io::Error> {
-    stream.write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).await
+    stream
+        .write_all(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n \
+            \r\n<h3 font=\"monospace\">You may now close this tab.</h3>"
+                .as_bytes(),
+        )
+        .await
 }
 
 async fn receive_query_params(stream: &mut TcpStream) -> io::Result<String> {
