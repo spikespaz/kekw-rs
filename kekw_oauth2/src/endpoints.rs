@@ -109,7 +109,7 @@ impl std::error::Error for AuthCodeDenied {}
 /// The documentation explicitly states that the query string is supposed to be
 /// sent in the body of the `POST` request, but this always fails. Instead, send it in the URL.
 #[derive(Debug, Serialize, Deserialize, TypedBuilder, QueryParams)]
-pub struct AuthTokenRequestBody {
+pub struct AuthTokenRequestQuery {
     pub client_id: ClientId,
     pub client_secret: ClientSecret,
     pub code: AuthCode,
@@ -118,42 +118,60 @@ pub struct AuthTokenRequestBody {
     pub redirect_uri: String,
 }
 
-impl From<AuthTokenRequestBody> for Url {
-    fn from(query: AuthTokenRequestBody) -> Url {
+impl From<AuthTokenRequestQuery> for Url {
+    fn from(query: AuthTokenRequestQuery) -> Url {
         let mut url = Url::parse(AUTHORIZE_TOKEN_REQUEST_URL).unwrap();
         url.set_query(Some(&query.to_string()));
         url
     }
 }
 
-/// Encodes [`AuthTokenReqBody`] with `Display`/`ToString`.
-/// This is a "form encoded" query string, except it is not actually form encoded.
-/// We bypass `serde_qs` for the encoding, and for now, only utilize it for decoding.
 #[cfg(feature = "http-types")]
-impl From<AuthTokenRequestBody> for http_types::Request {
-    fn from(query: AuthTokenRequestBody) -> http_types::Request {
-        let url = Url::from(query);
-        http_types::Request::post(url)
+pub mod impl_http_types {
+    use http_types::Request;
+
+    use super::*;
+
+    /// Encodes [`AuthTokenReqBody`] with `Display`/`ToString`.
+    /// This is a "form encoded" query string, except it is not actually form encoded.
+    /// We bypass `serde_qs` for the encoding, and for now, only utilize it for decoding.
+    impl From<AuthTokenRequestQuery> for Request {
+        fn from(query: AuthTokenRequestQuery) -> Request {
+            Request::post(Url::from(query))
+        }
     }
 }
 
-// #[cfg(feature = "isahc")]
-// impl From<AuthTokenQuery> for isahc::Request<()> {
-//     fn from(query: AuthTokenQuery) -> isahc::Request<()> {
-//         let url = Url::from(query);
-//         isahc::Request::post(url.as_str())
-//             .body(())
-//             .expect("failed to set request body")
-//     }
-// }
-
 #[cfg(feature = "isahc")]
-impl From<AuthTokenRequestBody> for isahc::Request<String> {
-    fn from(body: AuthTokenRequestBody) -> isahc::Request<String> {
-        isahc::Request::post(AUTHORIZE_TOKEN_REQUEST_URL)
-            .body(serde_json::to_string(&body).unwrap())
-            .expect("failed to set request body")
+pub mod impl_isahc {
+    use isahc::Request;
+
+    use super::*;
+
+    impl From<AuthTokenRequestQuery> for Request<()> {
+        fn from(query: AuthTokenRequestQuery) -> Request<()> {
+            let url = Url::from(query);
+            Request::post(url.as_str())
+                .body(())
+                .expect("failed to set request body")
+        }
     }
+
+    // impl From<AuthTokenRequestBody> for AsyncBody {
+    //     fn from(value: AuthTokenRequestBody) -> Self {
+    //         AsyncBody::from(dbg!(
+    //             serde_json::to_string(&value).expect("failed to serialize AuthTokenRequestBody")
+    //         ))
+    //     }
+    // }
+
+    // impl From<AuthTokenRequestBody> for Request<AuthTokenRequestBody> {
+    //     fn from(body: AuthTokenRequestBody) -> Request<AuthTokenRequestBody> {
+    //         Request::post(AUTHORIZE_TOKEN_REQUEST_URL)
+    //             .body(body)
+    //             .expect("failed to set request body")
+    //     }
+    // }
 }
 
 /// Body of the final response from the Twitch API.
