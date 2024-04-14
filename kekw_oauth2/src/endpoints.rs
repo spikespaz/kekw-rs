@@ -35,7 +35,20 @@ pub struct ClientId;
 pub struct ClientSecret;
 
 #[braid(secret, serde)]
-pub struct AuthState;
+pub struct CsrfState;
+
+impl CsrfState {
+    pub fn new_random() -> Self {
+        use rand::distributions::Distribution;
+        Self(
+            rand::distributions::Alphanumeric
+                .sample_iter(rand::thread_rng())
+                .take(16)
+                .map(|c| c as char)
+                .collect(),
+        )
+    }
+}
 
 #[braid(secret, serde)]
 pub struct AuthCode;
@@ -68,7 +81,7 @@ pub struct AuthCodeQuery {
     pub scope: Scopes,
     #[builder(default, setter(strip_option))]
     #[query_param(skip_if = Option::is_none, proxy = unwrap_option)]
-    pub state: Option<AuthState>,
+    pub state: Option<CsrfState>,
 }
 
 impl From<&AuthCodeQuery> for Url {
@@ -83,14 +96,14 @@ impl From<&AuthCodeQuery> for Url {
 pub struct AuthCodeAllowed {
     pub code: AuthCode,
     pub scope: Scopes,
-    pub state: Option<AuthState>,
+    pub state: Option<CsrfState>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AuthCodeDenied {
     pub error: String,
     pub error_description: String,
-    pub state: Option<AuthState>,
+    pub state: Option<CsrfState>,
 }
 
 impl fmt::Display for AuthCodeDenied {

@@ -2,7 +2,7 @@ use async_net::{AsyncToSocketAddrs, IpAddr, SocketAddr, TcpListener, TcpStream};
 use futures_lite::io::{self, BufReader};
 use futures_lite::{AsyncBufReadExt as _, AsyncWriteExt as _, StreamExt as _};
 
-use crate::endpoints::{AuthCodeAllowed, AuthCodeDenied};
+use crate::endpoints::{AuthCodeAllowed, AuthCodeDenied, CsrfStateRef};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -13,6 +13,8 @@ pub enum Error {
     AuthDenied(#[from] AuthCodeDenied),
     #[error("{0}")]
     ParseQuery(#[from] serde_qs::Error),
+    #[error("{0}: {1:?}")]
+    InvalidCsrfState(&'static str, AuthCodeAllowed),
 }
 
 /// Given a slice of strings and a port number, make an address for each pair
@@ -25,13 +27,14 @@ pub fn make_socket_addrs(ips: &[impl AsRef<str>], port: u16) -> Vec<SocketAddr> 
 
 pub async fn await_auth_code(
     addrs: impl AsyncToSocketAddrs,
+    state: Option<&CsrfStateRef>,
     max_tries: usize,
 ) -> Result<AuthCodeAllowed, Error> {
     let listener = TcpListener::bind(addrs).await?;
     let mut incoming = listener.incoming();
 
     let mut attempt = 0;
-    loop {
+    let res = loop {
         let Some(stream) = incoming.next().await else {
             break Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
@@ -67,6 +70,23 @@ pub async fn await_auth_code(
             Err(e) => Err(e),
         };
         break res;
+    }?;
+
+    match (state, &res.state) {
+        (Some(sent), Some(received)) if sent == received => Ok(res),
+        (Some(_), Some(_)) => Err(Error::InvalidCsrfState(
+            "the API responded with an invalid CSRF token",
+            res,
+        )),
+        (Some(_), None) => Err(Error::InvalidCsrfState(
+            "sent a CSRF token, but the API did not reply with one",
+            res,
+        )),
+        (None, Some(_)) => Err(Error::InvalidCsrfState(
+            "the API responded with a CSRF token but none was expected",
+            res,
+        )),
+        (None, None) => Ok(res),
     }
 }
 

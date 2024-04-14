@@ -14,7 +14,7 @@ use eyre::{eyre, Context};
 use futures_lite::AsyncReadExt;
 use isahc::HttpClient;
 use kekw_oauth2::endpoints::{
-    AuthCodeQuery, AuthState, AuthTokenAllowed, AuthTokenRequestQuery, ClientId, ClientSecret,
+    AuthCodeQuery, AuthTokenAllowed, AuthTokenRequestQuery, ClientId, ClientSecret, CsrfState,
 };
 use kekw_oauth2::server::*;
 use kekw_oauth2::types::Scopes;
@@ -70,7 +70,7 @@ Authentication scopes requested: {}
     smol::block_on(async {
         let addrs = make_socket_addrs(AUTH_LISTEN_IPS, AUTH_LISTEN_PORT);
 
-        let state = AuthState::new("c3ab8aa609ea11e793ae92361f002671".to_owned());
+        let state = CsrfState::new_random();
 
         // Step 1.
         // Build the initial query according to the table under [Get the user to authorize your app].
@@ -80,7 +80,7 @@ Authentication scopes requested: {}
             .force_verify() // Disable this if you implement persistence.
             .redirect_uri(REDIRECT_URI.to_owned())
             .scope(TWITCH_AUTH_SCOPE.clone())
-            // .state(state.clone()) // randomly generate a state string for CSRF protection.
+            .state(state.clone()) // randomly generate a state string for CSRF protection.
             .build();
         let url = Url::from(&query);
 
@@ -91,23 +91,9 @@ Authentication scopes requested: {}
         open::that(url.as_str()).wrap_err("failed to open default program to handle URL")?;
 
         // Spawn a server and wait for the user to accept your authentication scope using `await_auth_code`.
-        let allow = await_auth_code(&addrs[..], AUTH_MAX_TRIES)
+        let allow = await_auth_code(&addrs[..], Some(&state), AUTH_MAX_TRIES)
             .await
             .expect("authorization code handshake failed");
-
-        // If you gave a CSRF token in the `state` field, compare what Twitch
-        // (or somebody else) sent back.
-        match (query.state, allow.state) {
-            (Some(sent), Some(received)) if sent == received => Ok(()),
-            (Some(_), Some(_)) => Err(eyre!("the API responded with an invalid CSRF token")),
-            (Some(_), None) => Err(eyre!(
-                "sent a CSRF token, but the API did not reply with one"
-            )),
-            (None, Some(_)) => Err(eyre!(
-                "the API responded with a CSRF token but none was expected"
-            )),
-            (None, None) => Ok(()),
-        }?;
 
         // Step 2.
         // Open an HTTP client of your choice (see the crate features in `Cargo.toml`).
