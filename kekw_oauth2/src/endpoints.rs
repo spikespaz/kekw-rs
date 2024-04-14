@@ -71,8 +71,8 @@ pub struct AuthCodeQuery {
     pub state: Option<AuthState>,
 }
 
-impl From<AuthCodeQuery> for Url {
-    fn from(query: AuthCodeQuery) -> Url {
+impl From<&AuthCodeQuery> for Url {
+    fn from(query: &AuthCodeQuery) -> Url {
         let mut url = Url::parse(AUTHORIZE_CODE_REQUEST_URL).unwrap();
         url.set_query(Some(&query.to_string()));
         url

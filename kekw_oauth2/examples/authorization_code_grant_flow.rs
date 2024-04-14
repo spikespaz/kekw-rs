@@ -2,12 +2,15 @@
 //! Please see the source code for this file.
 //!
 //! To run this example, you must register an Application on the Twitch
-//! [Developer Console][1], acquire the Client ID and Client Secret,
+//! [Developer Console][10], acquire the Client ID and Client Secret,
 //! and set the environment variables `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.
 //!
 //! [0]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
-//! [1]: https://dev.twitch.tv/console
+//! [1]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#get-the-user-to-authorize-your-app
+//! [2]: https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#use-the-authorization-code-to-get-a-token
+//! [10]: https://dev.twitch.tv/console
 
+use eyre::{eyre, Context};
 use futures_lite::AsyncReadExt;
 use isahc::HttpClient;
 use kekw_oauth2::endpoints::{
@@ -18,11 +21,14 @@ use kekw_oauth2::types::Scopes;
 use once_cell::sync::Lazy;
 use url::Url;
 
+/// The server provided by this crate is very simple and the only parameter is
+/// the number of failed attempts before the server closes.
 const AUTH_MAX_TRIES: usize = 5;
 
 static AUTH_LISTEN_PORT: u16 = 8833;
 static AUTH_LISTEN_IPS: &[&str] = &["127.0.0.1", "0.0.0.0"];
 
+// This must match your settings on the Twitch Developer Console.
 static REDIRECT_URI: &str = "http://localhost:8833";
 
 static TWITCH_CLIENT_ID: Lazy<ClientId> = Lazy::new(|| {
@@ -47,7 +53,7 @@ static TWITCH_AUTH_SCOPE: Lazy<Scopes> = Lazy::new(|| {
     ])
 });
 
-fn main() {
+fn main() -> eyre::Result<()> {
     eprintln!(
         r#"Maximum authentication attempts: {AUTH_MAX_TRIES}
 Listening on port: {AUTH_LISTEN_PORT}
@@ -66,6 +72,7 @@ Authentication scopes requested: {}
 
         let state = AuthState::new("c3ab8aa609ea11e793ae92361f002671".to_owned());
 
+        // Step 1.
         // Build the initial query according to the table under [Get the user to authorize your app].
         // Some of these are set by default (or are immutable).
         let query = AuthCodeQuery::builder()
@@ -75,31 +82,38 @@ Authentication scopes requested: {}
             .scope(TWITCH_AUTH_SCOPE.clone())
             // .state(state.clone()) // randomly generate a state string for CSRF protection.
             .build();
-        let url = &Url::from(query).to_string();
+        let url = Url::from(&query);
 
         // Display the URL to that the user may choose to click it.
         eprintln!("Open this URL in your browser: {url}\n");
 
         // Open the user's browser to the Twitch authentication dialog.
-        open::that(url).expect("failed to open default program to handle URL");
+        open::that(url.as_str()).wrap_err("failed to open default program to handle URL")?;
 
-        // Open a server and wait for the user to click the button.
+        // Spawn a server and wait for the user to accept your authentication scope using `await_auth_code`.
         let allow = await_auth_code(&addrs[..], AUTH_MAX_TRIES)
             .await
             .expect("authorization code handshake failed");
 
-        match allow.state {
-            Some(token) if token != state => {
-                panic!("csrf attack oh no");
-            }
-            // None => {
-            //     panic!("csrf attack oh no");
-            // }
-            _ => (),
-        };
+        // If you gave a CSRF token in the `state` field, compare what Twitch
+        // (or somebody else) sent back.
+        match (query.state, allow.state) {
+            (Some(sent), Some(received)) if sent == received => Ok(()),
+            (Some(_), Some(_)) => Err(eyre!("the API responded with an invalid CSRF token")),
+            (Some(_), None) => Err(eyre!(
+                "sent a CSRF token, but the API did not reply with one"
+            )),
+            (None, Some(_)) => Err(eyre!(
+                "the API responded with a CSRF token but none was expected"
+            )),
+            (None, None) => Ok(()),
+        }?;
 
-        let client = HttpClient::new().expect("failed to create http client");
+        // Step 2.
+        // Open an HTTP client of your choice (see the crate features in `Cargo.toml`).
+        let client = HttpClient::new().wrap_err("failed to create an HTTP client")?;
 
+        // Use the authorization code to get a token for your session.
         let req_body = AuthTokenRequestQuery::builder()
             .client_id(TWITCH_CLIENT_ID.clone())
             .client_secret(TWITCH_CLIENT_SECRET.clone())
@@ -117,18 +131,19 @@ Authentication scopes requested: {}
             Ok(res) => {
                 let (_parts, mut body) = res.into_parts();
                 let mut buf = Vec::new();
-                body.read_to_end(&mut buf)
-                    .await
-                    .expect("failed to read a response to the end");
-                panic!("{:?}", serde_json::from_slice::<serde_json::Value>(&buf));
+                body.read_to_end(&mut buf).await?;
+                return Err(eyre!(serde_json::from_slice::<serde_json::Value>(&buf)?));
             }
             Err(_) => todo!(),
         };
 
-        dbg!(res);
-    });
+        // Print out the response (including the token).
+        Ok(println!("{:?}", res?.into_body()))
+    })
 }
 
+/// Reassemble the [`isahc::Response<isahc::AsyncBody>`] as [`isahc::Response<T>`]
+/// where `T` is a type to `Deserialize` into.
 async fn deserialize_response<T>(
     res: isahc::Response<isahc::AsyncBody>,
 ) -> serde_json::Result<isahc::Response<T>>
