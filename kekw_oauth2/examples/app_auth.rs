@@ -13,11 +13,10 @@
 use eyre::{eyre, Context};
 use futures_lite::AsyncReadExt;
 use isahc::HttpClient;
-use kekw_oauth2::endpoints::{
-    AuthCodeQuery, AuthTokenAllowed, AuthTokenRequestQuery, ClientId, ClientSecret, CsrfState,
-};
+use kekw_oauth2::requests::{AuthCodeQuery, AuthTokenRequestQuery};
+use kekw_oauth2::response::AuthTokenAllowed;
 use kekw_oauth2::server::*;
-use kekw_oauth2::types::Scopes;
+use kekw_oauth2::types::{ClientId, ClientSecret, CsrfState, Scopes};
 use once_cell::sync::Lazy;
 use url::Url;
 

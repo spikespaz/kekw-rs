@@ -2,7 +2,8 @@ use async_net::{AsyncToSocketAddrs, IpAddr, SocketAddr, TcpListener, TcpStream};
 use futures_lite::io::{self, BufReader};
 use futures_lite::{AsyncBufReadExt as _, AsyncWriteExt as _, StreamExt as _};
 
-use crate::endpoints::{AuthCodeAllowed, AuthCodeDenied, CsrfStateRef};
+use crate::response::{AuthCodeAllowed, AuthCodeDenied};
+use crate::types::CsrfStateRef;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -10,7 +11,7 @@ pub enum Error {
     #[error("{0}")]
     Io(#[from] io::Error),
     #[error("{0}")]
-    AuthDenied(#[from] AuthCodeDenied),
+    AuthDenied(AuthCodeDenied),
     #[error("{0}")]
     ParseQuery(#[from] serde_qs::Error),
     #[error("{0}: {1:?}")]
@@ -45,11 +46,11 @@ pub async fn await_auth_code(
         let mut stream = stream?;
         let query = match receive_query_params(&mut stream).await {
             Ok(query) => {
-                ok_200(&mut stream).await?;
+                write_200_ok(&mut stream).await?;
                 query
             }
             Err(e) if e.kind() == io::ErrorKind::InvalidData => {
-                im_a_teapot_418(&mut stream).await?;
+                write_418_im_a_teapot(&mut stream).await?;
                 continue;
             }
             Err(e) if attempt < max_tries => {
@@ -92,7 +93,7 @@ pub async fn await_auth_code(
 
 #[rustfmt::skip]
 #[inline]
-async fn im_a_teapot_418(stream: &mut TcpStream) -> Result<(), io::Error> {
+async fn write_418_im_a_teapot(stream: &mut TcpStream) -> Result<(), io::Error> {
     stream.write_all(
         "HTTP/1.1 418 I'm a teapot\r\nContent-Type: text/html\r\n \
         \r\n<h3 font=\"monospace\">I'm a teapot</h3>"
@@ -103,7 +104,7 @@ async fn im_a_teapot_418(stream: &mut TcpStream) -> Result<(), io::Error> {
 
 #[rustfmt::skip]
 #[inline]
-async fn ok_200(stream: &mut TcpStream) -> Result<(), io::Error> {
+async fn write_200_ok(stream: &mut TcpStream) -> Result<(), io::Error> {
     stream
         .write_all(
             "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n \

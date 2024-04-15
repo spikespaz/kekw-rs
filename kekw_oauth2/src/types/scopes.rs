@@ -12,6 +12,7 @@ use kekw_macros::{
 #[derive(
     Copy, Clone, DebugExprs, DisplayStrings, VariantStrings, VariantFromStr, DeserializeFromStr,
 )]
+#[non_exhaustive]
 pub enum Scope {
     /// View analytics data for the Twitch Extensions owned by the authenticated account.
     #[static_str("analytics:read:extensions")]
