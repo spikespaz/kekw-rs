@@ -1,0 +1,25 @@
+[package]
+name = "kekw_endpoints"
+version = "0.0.0"
+authors.workspace = true
+description = "An HTTP client that aims to be a uniform wraper around the variety of Twitch APIs."
+categories = [
+    "api-bindings",
+    "asynchronous",
+    "web-programming",
+    "web-programming::websocket",
+]
+keywords = ["twitch", "endpoint", "http-api", "async", "rest"]
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition = "2021"
+
+publish = false
+
+[features]
+docs = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

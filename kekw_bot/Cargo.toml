@@ -1,19 +1,20 @@
 [package]
 name = "kekw_bot"
 version = "0.0.0"
-description.workspace = true
-homepage.workspace = true
-# documentation.workspace = true
 authors.workspace = true
+description = "Sample Twitch bot for the kekw Rust API."
+categories = ["web-programming::http-client"]
+keywords = ["twitch", "bot", "http-client"]
+homepage.workspace = true
+repository.workspace = true
 license.workspace = true
-keywords.workspace = true
-edition = "2021"
+edition.workspace = true
 
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# [features]
-# docs = []
+[features]
+docs = []
 
 [dependencies]

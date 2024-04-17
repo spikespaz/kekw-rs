@@ -1,0 +1,21 @@
+[package]
+name = "kekw_types"
+version = "0.0.0"
+authors.workspace = true
+description = "Types for data structures appearing in Twitch API responses."
+categories = ["web-programming", "value-formatting", "rust-patterns"]
+keywords = ["twitch", "http", "types"]
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+
+publish = false
+
+[features]
+docs = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kekw_macros.workspace = true

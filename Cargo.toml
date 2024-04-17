@@ -1,24 +1,63 @@
+[package]
+name = "kekw"
+version.workspace = true
+authors.workspace = true
+description = "A best-effort wrapper around the functionality of the various Twitch APIs."
+categories = [
+    "api-bindings",
+    "asynchronous",
+    "authentication",
+    "web-programming::http-client",
+    "web-programming::websocket",
+]
+keywords = ["twitch", "eventsub", "oauth", "async", "http-client"]
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+
+publish = false
+
+[features]
+docs = [
+    "kekw_client/docs",
+    "kekw_endpoints/docs",
+    "kekw_eventsub/docs",
+    "kekw_lib/docs",
+    "kekw_macros/docs",
+    "kekw_oauth2/docs",
+    "kekw_types/docs",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [workspace]
 resolver = "2"
-members = [
-    "kekw",
-    "kekw_lib",
-    "kekw_types",
-    "kekw_bot",
-    "kekw_client",
-    "kekw_endpoints",
-    "kekw_macros",
-    "kekw_oauth2",
-    "kekw_eventsub",
-]
-default-members = ["kekw", "kekw_bot"]
+members = ["crates/*", "kekw_bot"]
+# default-members = ["kekw", "kekw_bot"]
 
 [workspace.package]
-name = "kekw"
-version = "0.0.0"
-description = "Agnostic API wrapper for Twitch Helix and EventSub."
-homepage = "https://github.com/spikespaz/kekw-rs"
 authors = ["Jacob Birkett <support@birkett.dev>"]
+version = "0.0.0"
+homepage = "https://github.com/spikespaz/kekw-rs"
+repository = "https://github.com/spikespaz/kekw-rs"
 license = "MIT"
-keywords = ["twitch", "eventsub", "oauth", "async", "http-client"]
 edition = "2021"
+
+[workspace.dependencies]
+kekw_client = { path = "crates/kekw_client" }
+kekw_endpoints = { path = "crates/kekw_endpoints" }
+kekw_eventsub = { path = "crates/kekw_eventsub" }
+kekw_lib = { path = "crates/kekw_lib" }
+kekw_macros = { path = "crates/kekw_macros" }
+kekw_oauth2 = { path = "crates/kekw_oauth2" }
+kekw_types = { path = "crates/kekw_types" }
+
+[dependencies]
+kekw_client.workspace = true
+kekw_endpoints.workspace = true
+kekw_eventsub.workspace = true
+kekw_lib.workspace = true
+kekw_macros.workspace = true
+kekw_oauth2.workspace = true
+kekw_types.workspace = true

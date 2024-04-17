@@ -1,0 +1,19 @@
+[package]
+name = "kekw_eventsub"
+version = "0.0.0"
+authors.workspace = true
+description = "A Rust wrapper for Twitch's EventSub Websocket API."
+categories = ["web-programming", "value-formatting", "rust-patterns"]
+keywords = ["twitch", "http", "types"]
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+publish = false
+
+[features]
+docs = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

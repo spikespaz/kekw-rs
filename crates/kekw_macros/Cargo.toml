@@ -1,13 +1,14 @@
 [package]
 name = "kekw_macros"
 version = "0.0.0"
-description.workspace = true
-homepage.workspace = true
-# documentation.workspace = true
 authors.workspace = true
+description = "Derives and macros for common rust patterns, often relating to web programming."
+categories = ["value-formatting", "rust-patterns"]
+keywords = ["proc-macro", "http", "utilities"]
+homepage.workspace = true
+repository.workspace = true
 license.workspace = true
-keywords.workspace = true
-edition = "2021"
+edition.workspace = true
 
 publish = false
 

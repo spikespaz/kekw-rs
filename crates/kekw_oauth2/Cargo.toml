@@ -1,17 +1,16 @@
 [package]
 name = "kekw_oauth2"
 version = "0.0.0"
-description.workspace = true
-homepage.workspace = true
-# documentation.workspace = true
 authors.workspace = true
+description = "A convenient API for authenticating with the various Twitch APIs."
+categories = ["api-wrappers", "web-programming", "rust-patterns"]
+keywords = ["twitch", "oauth2", "authentication", "http-api", "utilities"]
+homepage.workspace = true
+repository.workspace = true
 license.workspace = true
-keywords.workspace = true
-edition = "2021"
+edition.workspace = true
 
 publish = false
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 http-types = ["dep:http-types"]
@@ -19,8 +18,10 @@ isahc = ["dep:isahc", "isahc/json"]
 
 docs = ["http-types", "isahc"]
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
-kekw_macros = { path = "../kekw_macros" }
+kekw_macros.workspace = true
 aliri_braid = { git = "https://github.com/spikespaz/aliri_braid_secret" }
 typed-builder = "0.18"
 serde = { version = "1", features = ["derive"] }
